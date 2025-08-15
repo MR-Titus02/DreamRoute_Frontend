@@ -169,7 +169,7 @@ export default function LandingPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await axios.post("http://ec2-3-27-187-10.ap-southeast-2.compute.amazonaws.com:5000/api/contact/send", formData);
+      const response = await axios.post("https://api.dreamroute.edu.lk/api/contact/send", formData);
       setSubmitStatus("success");
       setFormData({ name: "", email: "", phone: "", message: "" });
     } catch (error) {

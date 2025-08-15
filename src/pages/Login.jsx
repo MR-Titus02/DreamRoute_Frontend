@@ -22,7 +22,7 @@ function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://ec2-3-27-187-10.ap-southeast-2.compute.amazonaws.com:5000/auth/google";
+    window.location.href = "https://api.dreamroute.edu.lk/api/auth/google";
   };
 
   const handleSubmit = async (e) => {
