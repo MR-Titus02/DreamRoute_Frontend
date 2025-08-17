@@ -33,7 +33,6 @@ import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
 import InstitutionSettings from "./pages/InstitutionSettings";
 import RequestInstitution from "./pages/RequestInstitution";
-import TestPage from "./pages/TestPage";
 import PlansPage from "./pages/PlansPage";
 import PaymentMethodsPage from "./pages/PaymentMethodsPage";
 import PaymentSuccessPage from "./pages/PaymentSuccess";
@@ -68,7 +67,6 @@ function App() {
         <Route path="/oauth-redirect" element={<OAuthRedirect />} />
         <Route path="/roadmap" element={<Roadmap />} />
         <Route path="/dashboard/career-path" element={<CareerPathFlow />} />
-        <Route path="/test" element={<TestPage />} />
 
 <Route
       path="/admin"
