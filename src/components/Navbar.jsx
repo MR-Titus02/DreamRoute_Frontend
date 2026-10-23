@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import Logo from "@/assets/logo.png";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -22,7 +23,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-[#222831] text-white shadow-md px-6 py-4 flex justify-between items-center">
+    <nav className="flex items-center justify-between gap-3 border-b border-border bg-sidebar px-4 py-3 text-sidebar-foreground shadow-sm sm:px-6">
       {/* Left: Logo & App Name */}
       <div className="flex items-center gap-4">
         <img src={Logo} alt="DreamRoute Logo" className="w-10 h-10 rounded" />
@@ -35,8 +36,8 @@ export default function Navbar() {
           <button
             key={item.title}
             onClick={() => navigate(item.path)}
-            className={`text-sm font-medium hover:text-cyan-400 transition ${
-              location.pathname === item.path ? "text-cyan-400" : "text-white"
+            className={`text-sm font-medium transition ${
+              location.pathname === item.path ? "text-sidebar-ring" : "text-sidebar-foreground hover:text-sidebar-ring"
             }`}
           >
             {item.title}
@@ -45,11 +46,13 @@ export default function Navbar() {
       </div>
 
       {/* Right: Welcome + Logout */}
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-gray-300">👋 {user?.name || "User"}</span>
+      <div className="flex items-center gap-2 sm:gap-4">
+        <span className="hidden text-sm text-sidebar-foreground/75 sm:inline">Hi, {user?.name || "User"}</span>
+        <ThemeToggle className="border-sidebar-border bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80" />
         <Button
           onClick={handleLogout}
-          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
+          variant="destructive"
+          className="px-3 text-sm"
         >
           Logout
         </Button>

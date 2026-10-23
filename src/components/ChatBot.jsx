@@ -18,16 +18,17 @@ const ChatBot = ({ userId }) => {
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    const message = input.trim();
+    if (!message || isTyping) return;
 
-    const userMessage = { sender: "user", text: input };
+    const userMessage = { sender: "user", text: message };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsTyping(true);
 
     try {
       const res = await axios.post("/chat", {
-        message: input,
+        message,
         userId,
       });
 
@@ -40,15 +41,11 @@ const ChatBot = ({ userId }) => {
       console.error(err);
       setMessages((prev) => [
         ...prev,
-        { sender: "bot", text: "Error fetching response. Try again later." },
+        { sender: "bot", text: "I couldn't get a response. Please try again.", isError: true },
       ]);
     } finally {
       setIsTyping(false);
     }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleSend();
   };
 
   useEffect(() => {
@@ -70,16 +67,21 @@ const ChatBot = ({ userId }) => {
     return (
       <div
         key={idx}
-        className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
+        role={msg.isError ? "alert" : "article"}
+        className={`max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
           msg.sender === "user"
-            ? "ml-auto bg-blue-500 text-white"
-            : "mr-auto bg-gray-200 text-gray-800"
+            ? "ml-auto bg-primary text-primary-foreground"
+            : msg.isError
+              ? "mr-auto border border-error/30 bg-destructive/10 text-error"
+              : "mr-auto bg-muted text-foreground"
         }`}
       >
         {displayedText}
         {isLong && (
           <button
             className="text-xs text-blue-600 ml-1 underline"
+            type="button"
+            aria-expanded={isExpanded}
             onClick={() => toggleReadMore(idx)}
           >
             {isExpanded ? "Show Less" : "Read More"}
@@ -94,7 +96,9 @@ const ChatBot = ({ userId }) => {
       {/* Floating Button */}
       {!isOpen && (
         <button
-          className="fixed bottom-6 right-6 z-50 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700"
+          type="button"
+          aria-label="Open DreamRoute chat"
+          className="fixed bottom-6 right-6 z-50 rounded-full bg-primary p-3 text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
           onClick={toggleChat}
         >
           <MessageSquare />
@@ -103,24 +107,34 @@ const ChatBot = ({ userId }) => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 w-80 max-h-[32rem] bg-white rounded-xl shadow-lg flex flex-col z-50">
+        <section
+          aria-label="DreamRoute chat"
+          className="fixed bottom-20 right-3 z-50 flex max-h-[min(32rem,calc(100vh-6rem))] w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xl sm:right-6 sm:w-80"
+        >
           {/* Header */}
-          <div className="bg-blue-600 text-white p-3 rounded-t-xl flex justify-between items-center">
+          <div className="flex items-center justify-between bg-primary p-3 text-primary-foreground">
             <span className="font-semibold">DreamRoute Bot</span>
-            <button onClick={toggleChat}>
-              <X className="w-5 h-5" />
+            <button
+              type="button"
+              onClick={toggleChat}
+              aria-label="Close DreamRoute chat"
+              className="rounded p-1 hover:bg-primary-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground"
+            >
+              <X aria-hidden="true" className="h-5 w-5" />
             </button>
           </div>
 
           {/* Messages */}
           <div
-            className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50"
+            aria-live="polite"
+            aria-relevant="additions text"
+            className="flex-1 space-y-2 overflow-y-auto bg-background p-3"
             style={{ height: "20rem" }}
           >
             {messages.map((msg, idx) => renderMessage(msg, idx))}
 
             {isTyping && (
-              <div className="mr-auto bg-gray-200 text-gray-800 px-3 py-2 rounded-lg text-sm animate-pulse">
+              <div role="status" className="mr-auto animate-pulse rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
                 DreamRoute is typing...
               </div>
             )}
@@ -129,23 +143,31 @@ const ChatBot = ({ userId }) => {
           </div>
 
           {/* Input */}
-          <div className="flex border-t p-2">
+          <form
+            className="flex gap-2 border-t border-border p-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSend();
+            }}
+          >
             <input
+              aria-label="Message"
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
               placeholder="Type a message..."
-              className="flex-1 text-sm p-2 border border-gray-300 rounded-lg focus:outline-none"
+              className="min-w-0 flex-1 rounded-lg border border-input bg-background p-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <button
-              className="ml-2 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700"
-              onClick={handleSend}
+              type="submit"
+              disabled={!input.trim() || isTyping}
+              aria-label="Send message"
+              className="rounded-lg bg-primary p-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Send className="w-4 h-4" />
+              <Send aria-hidden="true" className="h-4 w-4" />
             </button>
-          </div>
-        </div>
+          </form>
+        </section>
       )}
     </>
   );

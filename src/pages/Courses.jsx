@@ -1,9 +1,15 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function Courses() {
   const [courses, setCourses] = useState([]);
@@ -17,7 +23,8 @@ export default function Courses() {
   const [minPrice, setMinPrice] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const modalRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const limit = 6;
   const totalPages = Math.ceil(filteredCourses.length / limit);
@@ -27,40 +34,44 @@ export default function Courses() {
     currentPage * limit
   );
 
-  useEffect(() => {
-    const fetchCoursesAndInstitutions = async () => {
-      try {
-        const [coursesRes, institutionsRes] = await Promise.all([
-          axios.get("http://localhost:5001/api/courses"),
-          axios.get("http://localhost:5001/api/institutions"),
-        ]);
+  const fetchCoursesAndInstitutions = async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const [coursesRes, institutionsRes] = await Promise.all([
+        axios.get("http://localhost:5001/api/courses"),
+        axios.get("http://localhost:5001/api/institutions"),
+      ]);
 
-        const coursesData = coursesRes.data;
-        const institutionsData = institutionsRes.data;
+      const coursesData = coursesRes.data;
+      const institutionsData = institutionsRes.data;
 
-        if (!Array.isArray(coursesData) || !Array.isArray(institutionsData)) {
-          console.error("Unexpected API response format");
-          return;
-        }
-
-        const updatedCourses = coursesData.map((course) => {
-          const inst = institutionsData.find(
-            (i) => i.id === course.institution_id
-          );
-          return {
-            ...course,
-            institution: inst || null,
-          };
-        });
-
-        setInstitutions(institutionsData);
-        setCourses(updatedCourses);
-        setFilteredCourses(updatedCourses);
-      } catch (err) {
-        console.error("Error fetching data:", err);
+      if (!Array.isArray(coursesData) || !Array.isArray(institutionsData)) {
+        throw new Error("Unexpected courses response.");
       }
-    };
 
+      const updatedCourses = coursesData.map((course) => {
+        const inst = institutionsData.find(
+          (i) => String(i.id) === String(course.institution_id)
+        );
+        return {
+          ...course,
+          institution: inst || null,
+        };
+      });
+
+      setInstitutions(institutionsData);
+      setCourses(updatedCourses);
+      setFilteredCourses(updatedCourses);
+    } catch (err) {
+      console.error("Error fetching courses and institutions:", err);
+      setLoadError("We couldn't load courses. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCoursesAndInstitutions();
   }, []);
 
@@ -68,19 +79,20 @@ export default function Courses() {
     const lowerSearch = searchTerm.toLowerCase();
     const filtered = courses.filter((course) => {
       const matchesSearch =
-        course.title.toLowerCase().includes(lowerSearch) ||
-        course.description.toLowerCase().includes(lowerSearch);
+        String(course.title || "").toLowerCase().includes(lowerSearch) ||
+        String(course.description || "").toLowerCase().includes(lowerSearch);
 
       const matchesInstitution = selectedInstitution
-        ? course.institution_id === parseInt(selectedInstitution)
+        ? String(course.institution_id) === selectedInstitution
         : true;
 
       const matchesDuration =
-        (!minDuration || parseInt(course.duration) >= parseInt(minDuration)) &&
-        (!maxDuration || parseInt(course.duration) <= parseInt(maxDuration));
+        (!minDuration || parseFloat(course.duration) >= parseFloat(minDuration)) &&
+        (!maxDuration || parseFloat(course.duration) <= parseFloat(maxDuration));
 
       const matchesPrice =
-        !maxPrice || parseFloat(course.price) <= parseFloat(maxPrice);
+        (!minPrice || parseFloat(course.price) >= parseFloat(minPrice)) &&
+        (!maxPrice || parseFloat(course.price) <= parseFloat(maxPrice));
 
       return (
         matchesSearch &&
@@ -98,6 +110,7 @@ export default function Courses() {
     minDuration,
     maxDuration,
     maxPrice,
+    minPrice,
     courses,
   ]);
 
@@ -107,52 +120,35 @@ export default function Courses() {
     window.scrollTo({ top: gridTop - 100, behavior: "smooth" });
   }, [currentPage]);
 
-  // Close modal if clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (selectedCourse && modalRef.current && !modalRef.current.contains(event.target)) {
-        setSelectedCourse(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [selectedCourse]);
-
   const closeModal = () => setSelectedCourse(null);
-
-  const handleApplyNow = () => {
-    // Here you can redirect to an application form or payment page
-    alert(`Apply Now clicked for course: ${selectedCourse.title}`);
-  };
   
     return (
       <DashboardLayout>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-cyan-400">
-            🎓 Explore Available Courses
+          <h1 className="mb-6 text-3xl font-bold text-foreground">
+            Explore available courses
           </h1>
   
-          {/* Filters - Enhanced */}
-          <div className="flex flex-wrap gap-4 mb-8 justify-center items-end">
+          <div className="mb-8 grid gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground sm:grid-cols-2 lg:grid-cols-4">
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-300 mb-1">Search</label>
+              <label htmlFor="course-search" className="mb-1 block text-sm font-medium">Search</label>
               <Input
+                id="course-search"
                 type="text"
                 placeholder="Course title or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-72 bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="w-full bg-background text-foreground"
               />
             </div>
   
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-300 mb-1">Institution</label>
+              <label htmlFor="course-institution" className="mb-1 block text-sm font-medium">Institution</label>
               <select
+                id="course-institution"
                 value={selectedInstitution}
                 onChange={(e) => setSelectedInstitution(e.target.value)}
-                className="w-full sm:w-48 bg-gray-700 border-gray-600 text-white rounded-md p-2 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-foreground"
               >
                 <option value="">All Institutions</option>
                 {institutions.map((inst) => (
@@ -164,47 +160,54 @@ export default function Courses() {
             </div>
   
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-300 mb-1">Duration (weeks)</label>
+              <span className="mb-1 block text-sm font-medium">Duration (weeks)</span>
               <div className="flex gap-2">
                 <Input
+                  aria-label="Minimum duration in weeks"
                   type="number"
+                  min="0"
                   placeholder="Min"
                   value={minDuration}
                   onChange={(e) => setMinDuration(e.target.value)}
-                  className="w-20 bg-gray-700 border-gray-600 text-white"
+                  className="w-full bg-background text-foreground"
                 />
                 <Input
+                  aria-label="Maximum duration in weeks"
                   type="number"
+                  min="0"
                   placeholder="Max"
                   value={maxDuration}
                   onChange={(e) => setMaxDuration(e.target.value)}
-                  className="w-20 bg-gray-700 border-gray-600 text-white"
+                  className="w-full bg-background text-foreground"
                 />
               </div>
             </div>
   
             <div className="w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-300 mb-1">Max Price (₹)</label>
+              <span className="mb-1 block text-sm font-medium">Price (₹)</span>
               <div className="flex gap-2">
               <Input
+                aria-label="Minimum price in rupees"
                 type="number"
+                min="0"
+                placeholder="Min"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                className="w-full bg-background text-foreground"
+              />
+              <Input
+                aria-label="Maximum price in rupees"
+                type="number"
+                min="0"
                 placeholder="Any price"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
-                className="w-full sm:w-32 bg-gray-700 border-gray-600 text-white"
-              />
-              <Input
-                type="number"
-                placeholder="Any price"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                className="w-full sm:w-32 bg-gray-700 border-gray-600 text-white"
+                className="w-full bg-background text-foreground"
               />
               </div>
             </div>
           </div>
   
-          {/* Courses Grid - Enhanced */}
           <div
             id="course-grid"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
@@ -213,26 +216,35 @@ export default function Courses() {
               <Card
                 key={course.id}
                 onClick={() => setSelectedCourse(course)}
-                className="cursor-pointer bg-gray-800 p-5 min-h-[250px] flex flex-col justify-between rounded-xl border border-gray-700 hover:border-cyan-500/30 hover:shadow-lg transition-all duration-300 group"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedCourse(course);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`View details for ${course.title || "course"}`}
+                className="flex min-h-[230px] cursor-pointer flex-col justify-between rounded-xl border border-border bg-card p-5 text-card-foreground transition-colors hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div>
-                  <h2 className="text-xl font-semibold mb-2 text-white group-hover:text-cyan-400 transition-colors">
-                    {course.title}
+                  <h2 className="mb-2 text-xl font-semibold text-foreground">
+                    {course.title || "Untitled course"}
                   </h2>
-                  <p className="text-sm text-gray-400 line-clamp-3 mb-3">
-                    {course.description}
+                  <p className="mb-3 line-clamp-3 text-sm text-muted-foreground">
+                    {course.description || "No description provided."}
                   </p>
                 </div>
                 <div>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    <span className="bg-indigo-600/80 text-white px-3 py-1 text-xs rounded-full">
-                      {course.duration || "Flexible"} weeks
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                      {course.duration ? `${course.duration} weeks` : "Flexible duration"}
                     </span>
-                    <span className="bg-green-600/80 text-white px-3 py-1 text-xs rounded-full">
-                      ₹{course.price || "Free"}
+                    <span className="rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground">
+                      {Number(course.price) > 0 ? `₹${course.price}` : "Free"}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-400 italic">
+                  <p className="text-sm text-muted-foreground">
                     {course.institution?.name || "Institution Unknown"}
                   </p>
                 </div>
@@ -240,10 +252,23 @@ export default function Courses() {
             ))}
           </div>
   
-          {/* No Results - Enhanced */}
-          {filteredCourses.length === 0 && (
-            <div className="text-center mt-12 py-8 rounded-lg bg-gray-800/50 border border-gray-700">
-              <p className="text-gray-400 text-lg mb-2">No courses match your filters</p>
+          {loading && (
+            <div role="status" className="rounded-lg border border-border bg-card p-8 text-center text-muted-foreground">
+              Loading courses…
+            </div>
+          )}
+          {loadError && (
+            <div role="alert" className="flex flex-col items-center gap-3 rounded-lg border border-error/30 bg-destructive/10 p-6 text-center text-error">
+              <p>{loadError}</p>
+              <Button variant="outline" onClick={fetchCoursesAndInstitutions}>Try again</Button>
+            </div>
+          )}
+          {!loading && !loadError && filteredCourses.length === 0 && (
+            <div className="mt-8 rounded-lg border border-border bg-card py-8 text-center">
+              <p className="mb-2 text-lg text-foreground">
+                {courses.length === 0 ? "No courses are available yet." : "No courses match your filters."}
+              </p>
+              {courses.length > 0 && (
               <Button
                 onClick={() => {
                   setSearchTerm("");
@@ -251,25 +276,26 @@ export default function Courses() {
                   setMinDuration("");
                   setMaxDuration("");
                   setMaxPrice("");
+                  setMinPrice("");
                 }}
-                className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                variant="outline"
                 size="sm"
               >
                 Clear Filters
               </Button>
+              )}
             </div>
           )}
   
           {/* Pagination - Enhanced */}
           {filteredCourses.length > limit && (
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-10">
-              <div className="text-sm text-gray-400">
+              <div className="text-sm text-muted-foreground">
                 Showing {(currentPage - 1) * limit + 1}-{Math.min(currentPage * limit, filteredCourses.length)} of {filteredCourses.length} courses
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
                   onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
                 >
@@ -291,7 +317,8 @@ export default function Courses() {
                       <Button
                         key={pageNum}
                         variant={currentPage === pageNum ? "default" : "outline"}
-                        className={`min-w-[40px] ${currentPage === pageNum ? 'bg-cyan-500 text-white' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+                        className="min-w-[40px]"
+                        aria-current={currentPage === pageNum ? "page" : undefined}
                         onClick={() => setCurrentPage(pageNum)}
                       >
                         {pageNum}
@@ -299,12 +326,11 @@ export default function Courses() {
                     );
                   })}
                   {totalPages > 5 && currentPage < totalPages - 2 && (
-                    <span className="px-2 text-gray-400">...</span>
+                    <span className="px-2 text-muted-foreground">...</span>
                   )}
                   {totalPages > 5 && currentPage < totalPages - 2 && (
                     <Button
                       variant="outline"
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
                       onClick={() => setCurrentPage(totalPages)}
                     >
                       {totalPages}
@@ -313,7 +339,6 @@ export default function Courses() {
                 </div>
                 <Button
                   variant="outline"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
                   onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
                 >
@@ -324,61 +349,57 @@ export default function Courses() {
           )}
   
           {/* Course Details Modal - Enhanced */}
-          {selectedCourse && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-              <div
-                ref={modalRef}
-                className="relative bg-gray-800 text-gray-100 rounded-xl shadow-2xl w-full max-w-2xl mx-4 border border-gray-700 overflow-hidden"
-              >
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 to-blue-500"></div>
-                
-                <div className="p-6">
-                  <button
-                    onClick={closeModal}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-                    aria-label="Close modal"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-  
-                  <h2 className="text-2xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                    {selectedCourse.title}
-                  </h2>
+          <Dialog
+            open={Boolean(selectedCourse)}
+            onOpenChange={(open) => {
+              if (!open) closeModal();
+            }}
+          >
+            {selectedCourse && (
+              <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto border-border bg-card text-card-foreground">
+                <div className="space-y-5">
+                  <DialogTitle className="pr-8 text-2xl font-bold text-foreground">
+                    {selectedCourse.title || "Untitled course"}
+                  </DialogTitle>
   
                   <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="bg-indigo-600/80 text-white px-3 py-1 text-xs rounded-full">
-                      {selectedCourse.duration} weeks
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                      {selectedCourse.duration ? `${selectedCourse.duration} weeks` : "Flexible duration"}
                     </span>
-                    <span className="bg-green-600/80 text-white px-3 py-1 text-xs rounded-full">
-                      ₹{selectedCourse.price}
+                    <span className="rounded-full bg-accent px-3 py-1 text-xs text-accent-foreground">
+                      {Number(selectedCourse.price) > 0 ? `₹${selectedCourse.price}` : "Free"}
                     </span>
                   </div>
   
-                  <p className="mb-6 text-gray-300">{selectedCourse.description}</p>
+                  <DialogDescription className="text-muted-foreground">
+                    {selectedCourse.description || "No description provided."}
+                  </DialogDescription>
   
                   {selectedCourse.institution && (
-                    <div className="mt-6 pt-4 border-t border-gray-700">
-                      <h3 className="text-lg font-semibold mb-3 text-cyan-400">Offered By</h3>
-                      <div className="bg-gray-700/50 p-4 rounded-lg">
-                        <h4 className="font-medium text-white">{selectedCourse.institution.name}</h4>
-                        <div className="mt-2 space-y-1 text-sm text-gray-300">
+                    <div className="mt-6 border-t border-border pt-4">
+                      <h3 className="mb-3 text-lg font-semibold text-primary">Offered by</h3>
+                      <div className="rounded-lg bg-muted p-4">
+                        <h4 className="font-medium text-foreground">{selectedCourse.institution.name || "Institution"}</h4>
+                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
                           <p className="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                            {selectedCourse.institution.address}
+                            {selectedCourse.institution.address || "Address not provided"}
                           </p>
                           <p className="flex items-center gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
-                            {selectedCourse.institution.email}
+                            {selectedCourse.institution.email ? (
+                              <a href={`mailto:${selectedCourse.institution.email}`} className="underline underline-offset-2 hover:text-foreground">
+                                {selectedCourse.institution.email}
+                              </a>
+                            ) : "Email not provided"}
                           </p>
                         </div>
-                        <p className="mt-3 text-sm text-gray-400">
+                        <p className="mt-3 text-sm text-muted-foreground">
                           {selectedCourse.institution.description}
                         </p>
                       </div>
@@ -386,24 +407,18 @@ export default function Courses() {
                   )}
   
                   <div className="mt-8 flex justify-end gap-3">
-                    <Button
-                      variant="outline"
-                      onClick={closeModal}
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                    >
-                      Close
-                    </Button>
-                    <Button
-                      onClick={handleApplyNow}
-                      className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-                    >
-                      Apply Now
-                    </Button>
+                    {selectedCourse.institution?.email && (
+                      <Button asChild>
+                        <a href={`mailto:${selectedCourse.institution.email}?subject=${encodeURIComponent(`Course enquiry: ${selectedCourse.title || "course"}`)}`}>
+                          Contact institution
+                        </a>
+                      </Button>
+                    )}
                   </div>
                 </div>
-              </div>
-            </div>
+            </DialogContent>
           )}
+        </Dialog>
         </div>
       </DashboardLayout>
     );

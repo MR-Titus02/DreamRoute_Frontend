@@ -3,10 +3,9 @@ import ReactFlow, { Background, Controls, Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
-import Navbar from "@/components/Navbar";
+import DashboardLayout from "@/layouts/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { LoaderCircle, Lock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import PlansModal from "@/components/PlansModal"; 
 
 const NODE_WIDTH = 280;
@@ -20,9 +19,9 @@ function CustomNode({ data }) {
       style={{
         padding: 16,
         borderRadius: 12,
-        border: "2px solid #7c3aed",
-        background: "#1E293B",
-        color: "#E2E8F0",
+        border: "2px solid var(--primary)",
+        background: "var(--card)",
+        color: "var(--card-foreground)",
         minWidth: NODE_WIDTH,
         maxWidth: NODE_WIDTH,
         height: NODE_HEIGHT,
@@ -38,14 +37,14 @@ function CustomNode({ data }) {
         position={Position.Top}
         id="top"
         style={{
-          background: "#7c3aed",
+          background: "var(--primary)",
           borderRadius: "50%",
           width: 10,
           height: 10,
         }}
       />
       <div>
-        <div style={{ fontWeight: "bold", fontSize: 18, marginBottom: 8, color: "#A78BFA" }}>
+        <div style={{ fontWeight: "bold", fontSize: 18, marginBottom: 8, color: "var(--primary)" }}>
           {label}
         </div>
         <div style={{ fontSize: 14, opacity: 0.9, whiteSpace: "pre-wrap", lineHeight: "1.4" }}>
@@ -57,7 +56,7 @@ function CustomNode({ data }) {
         position={Position.Bottom}
         id="bottom"
         style={{
-          background: "#7c3aed",
+          background: "var(--primary)",
           borderRadius: "50%",
           width: 10,
           height: 10,
@@ -71,8 +70,14 @@ const nodeTypes = { customNode: CustomNode };
 
 export default function CareerRoadmapReactFlow() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const userId = user?.id || JSON.parse(localStorage.getItem("user"))?.id;
+  const storedUser = localStorage.getItem("user");
+  let storedUserId;
+  try {
+    storedUserId = storedUser ? JSON.parse(storedUser)?.id : undefined;
+  } catch (parseError) {
+    console.error("Failed to read stored user:", parseError);
+  }
+  const userId = user?.id || storedUserId;
 
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
@@ -84,20 +89,42 @@ export default function CareerRoadmapReactFlow() {
   const printRef = useRef();
 
   const fetchRoadmap = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setError("Your account could not be identified. Please sign in again.");
+      setNodes([]);
+      setEdges([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
+    setNodes([]);
+    setEdges([]);
 
     try {
-      const res = await axios.get(`http://localhost:5001/api/career/${userId}`);
+      let res;
+      try {
+        res = await axios.get(`http://localhost:5001/api/career/${userId}`);
+      } catch (requestError) {
+        if (requestError.response?.status !== 404) throw requestError;
+        await axios.post("http://localhost:5001/api/career/generate", { userId });
+        res = await axios.get(`http://localhost:5001/api/career/${userId}`);
+      }
       if (res.data.type !== "reactflow") throw new Error("Invalid roadmap format.");
 
       const { nodes: rawNodes, edges: rawEdges, career: careerTitle } = res.data.content;
+      if (!Array.isArray(rawNodes) || !Array.isArray(rawEdges)) {
+        throw new Error("Unexpected career map response.");
+      }
 
       const preparedNodes = rawNodes.map((node, index) => ({
         ...node,
         id: String(node.id),
         type: "customNode",
+        position: node.position || {
+          x: (index % 2) * (NODE_WIDTH + 100),
+          y: Math.floor(index / 2) * (NODE_HEIGHT + 80),
+        },
         data: {
           ...node.data,
           label: node.data.label || `Step ${index + 1}`,
@@ -114,28 +141,16 @@ export default function CareerRoadmapReactFlow() {
         targetHandle: "top",
         type: "smoothstep",
         animated: true,
-        style: { stroke: "#7c3aed", strokeWidth: 2 },
-        markerEnd: { type: "arrowclosed", color: "#7c3aed", width: 20, height: 20 },
+        style: { stroke: "var(--primary)", strokeWidth: 2 },
+        markerEnd: { type: "arrowclosed", color: "var(--primary)", width: 20, height: 20 },
       }));
 
       setCareer(careerTitle);
       setNodes(preparedNodes);
       setEdges(preparedEdges);
     } catch (err) {
-      if (err.response?.status === 404) {
-        try {
-          await axios.post("http://localhost:5001/api/career/generate", { userId });
-          await fetchRoadmap();
-          return;
-        } catch (generateErr) {
-          console.error("Failed to generate new roadmap:", generateErr);
-          setError("Failed to generate a new roadmap.");
-          return;
-        }
-      }
-
       console.error("Fetch error:", err);
-      setError("Failed to load roadmap.");
+      setError("We couldn't load your career map. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -150,7 +165,7 @@ export default function CareerRoadmapReactFlow() {
       await fetchRoadmap();
     } catch (err) {
       console.error("Regenerate error:", err);
-      setError("Failed to regenerate roadmap.");
+      setError("We couldn't regenerate your career map. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -213,36 +228,40 @@ export default function CareerRoadmapReactFlow() {
   const isPremium = user?.plan === "pro" || user?.plan === "premium";
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] text-white p-6">
+    <DashboardLayout>
+      <div className="min-h-screen bg-background p-4 text-foreground sm:p-6">
         <div className="max-w-6xl mx-auto">
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-[300px] animate-pulse text-gray-300 space-y-4">
-              <LoaderCircle className="animate-spin w-10 h-10 text-purple-500" />
-              <p className="text-lg font-medium">Building your career map...</p>
+            <div role="status" className="flex h-[300px] flex-col items-center justify-center space-y-4 text-muted-foreground">
+              <LoaderCircle className="h-10 w-10 animate-spin text-primary" />
+              <p className="text-lg font-medium">Loading your career map…</p>
             </div>
           ) : error ? (
-            <div className="bg-red-600 text-white p-4 rounded-lg mb-6 text-center max-w-2xl mx-auto">
+            <div role="alert" className="mx-auto mb-6 max-w-2xl rounded-lg border border-error/30 bg-destructive/10 p-4 text-center text-error">
               <p className="mb-3">{error}</p>
               <Button
-                className="bg-gradient-to-r from-white to-gray-200 text-red-600 hover:brightness-105"
+                variant="outline"
                 onClick={fetchRoadmap}
               >
-                🔁 Try Again
+                Try again
               </Button>
             </div>
           ) : (
             <>
               <div ref={printRef}>
-                <h1 className="text-4xl font-bold text-center text-green-400 mb-2">
-                  🎯 Career Path: <span className="text-white">{career}</span>
+                <h1 className="mb-2 text-center text-3xl font-bold text-foreground sm:text-4xl">
+                  Career path: <span className="text-primary">{career || "Not available"}</span>
                 </h1>
-                <p className="text-center text-indigo-300 text-sm mb-6">
+                <p className="mb-6 text-center text-sm text-muted-foreground">
                   Interactive visualization of your career progression
                 </p>
 
-                <div className="w-full h-[750px] bg-[#0f172a] border border-[#334155] rounded-xl p-2 shadow-xl">
+                {nodes.length === 0 ? (
+                  <div className="flex min-h-64 items-center justify-center rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
+                    No career map steps are available yet.
+                  </div>
+                ) : (
+                <div className="h-[min(750px,75vh)] min-h-[420px] w-full rounded-xl border border-border bg-background p-2 shadow-sm">
                   <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -256,24 +275,26 @@ export default function CareerRoadmapReactFlow() {
                   >
                     <Controls
                       style={{
-                        backgroundColor: "#1E293B",
-                        border: "1px solid #334155",
+                        backgroundColor: "var(--card)",
+                        border: "1px solid var(--border)",
                         borderRadius: "4px",
                       }}
                     />
-                    <Background gap={24} size={1} color="#334155" variant="dots" />
+                    <Background gap={24} size={1} color="var(--border)" variant="dots" />
                   </ReactFlow>
                 </div>
+                )}
               </div>
 
-              <div className="flex justify-center mt-6 space-x-4">
+              <div className="mt-6 flex justify-center">
               <Button
   onClick={() => {
     isPremium ? regenerateRoadmap() : setShowPlansModal(true);
   }}
-  className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
+  className="rounded-lg"
+  disabled={loading}
 >
-  <span>🔄 Regenerate Map</span>
+  <span>Regenerate map</span>
   {!isPremium && <Lock size={16} className="ml-2 text-yellow-400" />}
 </Button>
 
@@ -285,6 +306,6 @@ export default function CareerRoadmapReactFlow() {
 
       {/* ✅ Modal usage */}
       <PlansModal isOpen={showPlansModal} onClose={() => setShowPlansModal(false)} />
-    </>
+    </DashboardLayout>
   );
 }

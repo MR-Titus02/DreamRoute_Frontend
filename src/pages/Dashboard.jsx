@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,8 +26,15 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const userId = user?.id || JSON.parse(localStorage.getItem("user"))?.id;
+  const { user, loading: authLoading } = useAuth();
+  const storedUser = localStorage.getItem("user");
+  let storedUserId;
+  try {
+    storedUserId = storedUser ? JSON.parse(storedUser)?.id : undefined;
+  } catch (error) {
+    console.error("Failed to read stored user:", error);
+  }
+  const userId = user?.id || storedUserId;
 
   const [career, setCareer] = useState("");
   const [totalSteps, setTotalSteps] = useState(0);
@@ -35,6 +42,7 @@ export default function DashboardPage() {
   const [flatSteps, setFlatSteps] = useState([]);
   const [progressData, setProgressData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
@@ -48,24 +56,33 @@ export default function DashboardPage() {
   if (percentage >= 75) message = "Almost there!";
   if (percentage === 100) message = "🎉 You've completed your roadmap!";
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      if (!userId) return;
+  const loadDashboardData = useCallback(async () => {
+      if (authLoading) return;
+      if (!userId) {
+        setLoadError("Your account could not be identified. Please sign in again.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setLoadError("");
       try {
         const { career, roadmap } = await fetchRoadmap(userId);
 
         // Check if this is a new user with no profile data
-        const userData = JSON.parse(localStorage.getItem("user"));
+        const userData = storedUser ? JSON.parse(storedUser) : user;
         if ((!career || !roadmap) && !userData?.profileCompleted) {
           setIsNewUser(true);
           setShowProfileModal(true);
-          setLoading(false);
           return;
         }
 
         if (!roadmap || roadmap.length === 0) {
           setCareer(""); // no roadmap
-          setLoading(false);
+          setFlatSteps([]);
+          setProgressData([]);
+          setTotalSteps(0);
+          setCompletedSteps(0);
           return;
         }
 
@@ -85,23 +102,33 @@ export default function DashboardPage() {
         setTotalSteps(steps.length);
 
         const progress = await fetchProgress(userId);
+        if (!Array.isArray(progress)) {
+          throw new Error("Unexpected progress response.");
+        }
         setProgressData(progress);
 
-        const doneCount = progress.filter((item) => item.status === "done").length;
+        const statusByStep = new Map(
+          progress.map((item) => [String(item.step_id), item.status]),
+        );
+        const doneCount = steps.filter((step) =>
+          ["done", "completed"].includes(statusByStep.get(String(step.id))),
+        ).length;
         setCompletedSteps(doneCount);
       } catch (err) {
         console.error("Failed to fetch dashboard data:", err);
+        setLoadError("We couldn't load your dashboard data. Check your connection and try again.");
       } finally {
         setLoading(false);
       }
-    };
+  }, [authLoading, storedUser, user, userId]);
 
+  useEffect(() => {
     loadDashboardData();
-  }, [userId]);
+  }, [loadDashboardData]);
 
   const handleProfileComplete = () => {
     // Update user data in localStorage to mark profile as completed
-    const userData = JSON.parse(localStorage.getItem("user"));
+    const userData = storedUser ? JSON.parse(storedUser) : user;
     localStorage.setItem("user", JSON.stringify({ ...userData, profileCompleted: true }));
     setShowProfileModal(false);
     navigate("/userdetails");
@@ -142,18 +169,27 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <p className="text-white text-lg">Loading dashboard...</p>
+        <div role="status" className="rounded-lg border border-border bg-card p-6 text-muted-foreground">
+          Loading your dashboard…
+        </div>
       </DashboardLayout>
     );
   }
 
 return (
     <DashboardLayout>
+      <h1 className="mb-6 text-3xl font-bold text-foreground">Your dashboard</h1>
+      {loadError && (
+        <div role="alert" className="mb-6 flex flex-col gap-3 rounded-lg border border-error/30 bg-destructive/10 p-4 text-error sm:flex-row sm:items-center sm:justify-between">
+          <p>{loadError}</p>
+          <Button variant="outline" onClick={loadDashboardData}>Try again</Button>
+        </div>
+      )}
       {/* Profile Completion Modal - Enhanced */}
       <Dialog open={showProfileModal} onOpenChange={handleCloseAttempt}>
-        <DialogContent className="sm:max-w-[425px] bg-gray-800 border border-gray-700 rounded-lg text-white">
+        <DialogContent className="sm:max-w-[425px] rounded-lg border border-border bg-card text-card-foreground">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white">
+            <DialogTitle className="text-xl font-bold text-foreground">
               {isNewUser ? (
                 <span className="flex items-center gap-2">
                   <span className="text-blue-400">👋</span> Welcome to DreamRoute!
@@ -162,7 +198,7 @@ return (
                 "Complete Your Profile"
               )}
             </DialogTitle>
-            <DialogDescription className="text-gray-300 mt-2">
+            <DialogDescription className="mt-2 text-muted-foreground">
               {isNewUser
                 ? "Let's create your personalized career roadmap in just 2 minutes."
                 : "Update your profile for better recommendations."}
@@ -170,15 +206,15 @@ return (
           </DialogHeader>
           
           <div className="py-4 space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-gray-700/50 rounded-lg">
+            <div className="flex items-start gap-3 rounded-lg bg-muted p-3">
               <div className="text-blue-400 mt-0.5">ℹ️</div>
               <div>
-                <p className="text-sm font-medium text-white">
+                <p className="text-sm font-medium text-foreground">
                   {isNewUser 
                     ? "This helps us tailor recommendations to your goals"
                     : "Your information helps us improve suggestions"}
                 </p>
-                <ul className="list-disc pl-5 text-gray-300 text-sm mt-2 space-y-1">
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                   <li>Quick and easy setup</li>
                   <li>Data privacy guaranteed</li>
                   <li>Editable anytime</li>
@@ -190,7 +226,7 @@ return (
           <DialogFooter className="flex flex-col gap-2">
             <Button
               onClick={handleProfileComplete}
-              className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               size="lg"
             >
               {isNewUser ? "Begin Setup" : "Update Profile"}
@@ -199,7 +235,7 @@ return (
               <Button
                 onClick={handleCloseAttempt}
                 variant="outline"
-                className="w-full text-gray-300 border-gray-600 hover:bg-gray-700/50 hover:text-white rounded-lg"
+                className="w-full"
               >
                 Remind Me Later
               </Button>
@@ -210,15 +246,15 @@ return (
 
       {/* Confirmation Dialog - Styled */}
       <AlertDialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
-        <AlertDialogContent className="bg-gray-800 border border-gray-700 rounded-lg text-white">
+        <AlertDialogContent className="rounded-lg border border-border bg-card text-card-foreground">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white flex items-center gap-2">
+            <AlertDialogTitle className="flex items-center gap-2 text-foreground">
               <span className="text-yellow-400">⚠️</span> Required Step
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-300 mt-2">
+            <AlertDialogDescription className="mt-2 text-muted-foreground">
               You need to complete your profile to unlock all features.
               <br />
-              <span className="text-blue-300 font-medium mt-1 inline-block">
+              <span className="mt-1 inline-block font-medium text-primary">
                 This ensures you get the best recommendations.
               </span>
             </AlertDialogDescription>
@@ -226,13 +262,13 @@ return (
           <AlertDialogFooter className="mt-4">
             <AlertDialogCancel 
               onClick={handleCancelClose}
-              className="text-white border-gray-600 hover:bg-gray-700/50 rounded-lg"
+              className="border border-input bg-background hover:bg-accent hover:text-accent-foreground"
             >
               Continue Setup
             </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmClose}
-              className="bg-red-500 hover:bg-red-600 rounded-lg"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Exit Anyway
             </AlertDialogAction>
@@ -240,20 +276,20 @@ return (
         </AlertDialogContent>
       </AlertDialog>
 
-      {!career ? (
-        <Card className="bg-gradient-to-br from-slate-800 to-gray-900 text-gray-900 border border-gray-700 shadow-md mb-6">
+      {!loadError && (!career ? (
+        <Card className="mb-6 border-border bg-card text-card-foreground shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2 text-white">
-              <span className="text-amber-600">🎯</span> Setup Your Career Profile
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+              Setup your career profile
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="mb-4 text-white">
+            <p className="mb-4 text-muted-foreground">
               Complete your profile to generate a personalized career roadmap.
             </p>
             <Button
               onClick={() => navigate("/userdetails")}
-              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:brightness-110 text-white rounded-lg"
+              className="rounded-lg"
             >
               Start Setup
             </Button>
@@ -262,20 +298,20 @@ return (
       ) : (
         <>
           {/* Career Recommendation Card - Enhanced */}
-          <Card className="bg-gradient-to-br from-slate-800 to-gray-900 text-white border border-gray-700 shadow-lg mb-6">
+          <Card className="mb-6 border-border bg-card text-card-foreground shadow-sm">
             <CardHeader>
-              <CardTitle className="text-white text-lg font-semibold flex items-center gap-2">
-                <span className="text-blue-400">✨</span> Your Career Path
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                Your career path
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-300 mb-4">
+              <p className="mb-4 text-muted-foreground">
                 Our AI recommends:{" "}
-                <span className="text-blue-300 font-medium">{career}</span>
+                <span className="font-medium text-primary">{career}</span>
               </p>
               <Button
                 onClick={() => navigate("/dashboard/roadmap")}
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
+                className="rounded-lg"
               >
                 View Full Roadmap
               </Button>
@@ -283,60 +319,66 @@ return (
           </Card>
 
           {/* Progress Card - Enhanced */}
-          <Card className="bg-gradient-to-br from-gray-900 to-slate-800 text-white border border-gray-700 shadow-lg">
+          <Card className="border-border bg-card text-card-foreground shadow-sm">
             <CardHeader>
-              <CardTitle className="text-white text-lg font-semibold flex items-center gap-2">
-                <span className="text-green-400">📊</span> Your Progress
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                Your progress
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <p className="text-gray-300 mb-1">
-                    Completed: <span className="text-green-400 font-medium">{completedSteps}</span>/{totalSteps}
+                  <p className="mb-1 text-muted-foreground">
+                    Completed: <span className="font-medium text-success">{completedSteps}</span>/{totalSteps}
                   </p>
-                  <p className="text-blue-300 font-medium">
+                  <p className="font-medium text-primary">
                     {percentage}% Complete
                   </p>
                 </div>
-                <div className="w-40 bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="h-2.5 w-40 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label="Roadmap completion"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percentage}
+                >
                   <div
-                    className="bg-gradient-to-r from-blue-600 to-cyan-600 h-2.5 transition-all duration-500"
+                    className="h-2.5 bg-primary transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
               </div>
 
-              <div className="p-3 bg-gray-800/50 rounded-lg mb-6 border border-gray-700">
-                <p className="text-center text-blue-300 font-medium">
+              <div className="mb-6 rounded-lg border border-border bg-muted p-3">
+                <p className="text-center font-medium text-foreground">
                   {message} {remainingSteps > 0 && (
-                    <span className="text-gray-300">
+                    <span className="text-muted-foreground">
                       - {remainingSteps} step{remainingSteps !== 1 ? "s" : ""} remaining
                     </span>
                   )}
                 </p>
               </div>
 
-              <div className="space-y-3 mb-6">
-                {flatSteps.map((step) => {
-                  const isCompleted = progressData.some(
-                    (progress) => progress.step_id === step.id.toString() && progress.status === "done"
-                  );
+              <div className="mb-6 space-y-3">
+                {flatSteps.slice(0, 5).map((step) => {
+                  const status = progressMap[String(step.id)];
+                  const isCompleted = status === "done" || status === "completed";
                   
                   return (
                     <div
                       key={step.id}
                       className={`flex items-start p-3 rounded-lg border ${
                         isCompleted 
-                          ? "bg-gray-800/30 border-green-900/50" 
-                          : "bg-gray-800/50 border-gray-700 hover:bg-gray-700/50 transition-colors"
+                          ? "bg-success/10 border-success/30"
+                          : "bg-background border-border hover:bg-muted transition-colors"
                       }`}
                     >
                       <div
                         className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-3 mt-0.5 ${
                           isCompleted
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-600 text-gray-300"
+                            ? "bg-success text-white"
+                            : "bg-secondary text-secondary-foreground"
                         }`}
                       >
                         {isCompleted ? (
@@ -360,14 +402,14 @@ return (
                         <p
                           className={`${
                             isCompleted
-                              ? "text-gray-400 line-through"
-                              : "text-white"
+                              ? "text-muted-foreground line-through"
+                              : "text-foreground"
                           }`}
                         >
                           {step.label}
                         </p>
                         {step.section && (
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="mt-1 text-xs text-muted-foreground">
                             {step.section}
                           </p>
                         )}
@@ -380,7 +422,7 @@ return (
               {nextStep && (
                 <Button
                   onClick={() => navigate(`/dashboard/roadmap?step=${nextStep.id}`)}
-                  className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
+                  className="rounded-lg"
                 >
                   Continue with "{nextStep.label.substring(0, 30)}{nextStep.label.length > 30 ? "..." : ""}"
                 </Button>
@@ -388,7 +430,7 @@ return (
             </CardContent>
           </Card>
         </>
-      )}
+      ))}
     </DashboardLayout>
   );
 }

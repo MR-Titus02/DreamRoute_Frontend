@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import api from "@/api/axios";
 import AdminLayout from "@/layouts/AdminLayout";
 import {
@@ -24,31 +24,43 @@ export default function AdminDashboard() {
   const [limit, setLimit] = useState(5); // Default to 5
   const [roleFilter, setRoleFilter] = useState("all");
   const [loadingCounts, setLoadingCounts] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const { token, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => {
-    if (!loading && token) {
-      fetchData();
-    }
-  }, [loading, token]);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
+    setLoadingCounts(true);
+    setLoadError("");
+    setUsers([]);
+    setCourses([]);
+    setLogs([]);
     try {
       const [userRes, courseRes, logRes] = await Promise.all([
         api.get("/users/"),
         api.get("/courses/"),
         api.get("/login-logs/"),
       ]);
+      if (
+        !Array.isArray(userRes.data) ||
+        !Array.isArray(courseRes.data) ||
+        !Array.isArray(logRes.data)
+      ) {
+        throw new Error("Unexpected admin dashboard response.");
+      }
       setUsers(userRes.data || []);
       setCourses(courseRes.data || []);
       setLogs(logRes.data || []);
-      setLoadingCounts(false);
     } catch (err) {
       console.error("Fetch error:", err);
+      setLoadError("We couldn't load admin dashboard data. Check your connection and try again.");
+    } finally {
       setLoadingCounts(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!loading && token) fetchData();
+  }, [fetchData, loading, token]);
 
   const totalUsers = users.length;
   const premiumUsers = users.filter((u) => u.premium).length;
@@ -65,46 +77,53 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <h1 className="text-3xl font-bold mb-6 text-white">Admin Dashboard</h1>
+      <h1 className="mb-6 text-3xl font-bold text-foreground">Admin Dashboard</h1>
+
+      {loadError && (
+        <div role="alert" className="mb-6 flex flex-col gap-3 rounded-lg border border-error/30 bg-destructive/10 p-4 text-error sm:flex-row sm:items-center sm:justify-between">
+          <p>{loadError}</p>
+          <Button variant="outline" onClick={fetchData}>Try again</Button>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <Card className="bg-[#3B4758] shadow-lg">
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
           <CardHeader>
-            <CardTitle className="text-white">Total Users</CardTitle>
+            <CardTitle className="text-muted-foreground">Total Users</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-white">
-            {loadingCounts ? "..." : totalUsers}
+          <CardContent className="text-3xl font-semibold text-foreground">
+            {loadingCounts || loadError ? "—" : totalUsers}
           </CardContent>
         </Card>
-        <Card className="bg-[#3B4758] shadow-lg">
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
           <CardHeader>
-            <CardTitle className="text-white">Premium Users</CardTitle>
+            <CardTitle className="text-muted-foreground">Premium Users</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-white">
-            {loadingCounts ? "..." : premiumUsers}
+          <CardContent className="text-3xl font-semibold text-foreground">
+            {loadingCounts || loadError ? "—" : premiumUsers}
           </CardContent>
         </Card>
-        <Card className="bg-[#3B4758] shadow-lg">
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
           <CardHeader>
-            <CardTitle className="text-white">Total Courses</CardTitle>
+            <CardTitle className="text-muted-foreground">Total Courses</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-white">
-            {loadingCounts ? "..." : totalCourses}
+          <CardContent className="text-3xl font-semibold text-foreground">
+            {loadingCounts || loadError ? "—" : totalCourses}
           </CardContent>
         </Card>
-        <Card className="bg-[#3B4758] shadow-lg">
+        <Card className="border-border bg-card text-card-foreground shadow-sm">
           <CardHeader>
-            <CardTitle className="text-white">Institutions</CardTitle>
+            <CardTitle className="text-muted-foreground">Institutions</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-semibold text-white">
-            {loadingCounts ? "..." : totalInstitutions}
+          <CardContent className="text-3xl font-semibold text-foreground">
+            {loadingCounts || loadError ? "—" : totalInstitutions}
           </CardContent>
         </Card>
       </div>
 
       {/* Login History Section */}
-      <Card className="bg-[#1f2937] text-white shadow-xl mb-6">
+      <Card className="mb-6 border-border bg-card text-card-foreground shadow-sm">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <CardTitle className="text-lg font-semibold">Login History</CardTitle>
 
@@ -114,10 +133,10 @@ export default function AdminDashboard() {
               setRoleFilter(value);
               setCurrentPage(1);
             }}>
-              <SelectTrigger className="w-[150px] bg-gray-800 border-gray-700 text-white">
+              <SelectTrigger className="w-[150px]">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 text-white">
+              <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="admin">Admins</SelectItem>
                 <SelectItem value="institution">Institutions</SelectItem>
@@ -130,10 +149,10 @@ export default function AdminDashboard() {
               setLimit(Number(value));
               setCurrentPage(1);
             }}>
-              <SelectTrigger className="w-[120px] bg-gray-800 border-gray-700 text-white">
+              <SelectTrigger className="w-[120px]">
                 <SelectValue placeholder="Limit" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 text-white">
+              <SelectContent>
                 {[5, 10, 20, 50, 100].map((num) => (
                   <SelectItem key={num} value={String(num)}>
                     Last {num}
@@ -146,7 +165,7 @@ export default function AdminDashboard() {
 
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-gray-700 text-gray-200">
+            <thead className="bg-muted text-muted-foreground">
               <tr>
                 <th className="px-4 py-2">Name</th>
                 <th className="px-4 py-2">Email</th>
@@ -158,30 +177,42 @@ export default function AdminDashboard() {
             <tbody>
               {paginatedLogs.length > 0 ? (
                 paginatedLogs.map((log, idx) => (
-                  <tr key={idx} className="border-b border-gray-700 hover:bg-gray-800 transition">
+                  <tr key={log.id ?? `${log.email}-${log.created_at}-${idx}`} className="border-b border-border hover:bg-muted transition-colors">
                     <td className="px-4 py-2">{log.name}</td>
                     <td className="px-4 py-2">{log.email}</td>
-                    <td className="px-4 py-2 capitalize text-indigo-400">{log.role}</td>
+                    <td className="px-4 py-2 capitalize text-primary">{log.role}</td>
                     <td className="px-4 py-2">
                       <span
                         className={
                           log.status === "success"
-                            ? "text-green-400 font-medium"
-                            : "text-red-400 font-medium"
+                            ? "text-success font-medium"
+                            : "text-error font-medium"
                         }
                       >
                         {log.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-gray-400">
+                    <td className="px-4 py-2 text-muted-foreground">
                       {new Date(log.created_at).toLocaleString()}
                     </td>
                   </tr>
                 ))
+              ) : loadError ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-muted-foreground">
+                    Login history is unavailable until the dashboard data loads.
+                  </td>
+                </tr>
+              ) : loadingCounts ? (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-muted-foreground" role="status">
+                    Loading login history…
+                  </td>
+                </tr>
               ) : (
                 <tr>
-                  <td colSpan="5" className="text-center py-4 text-gray-400">
-                    No login logs available.
+                  <td colSpan="5" className="py-8 text-center text-muted-foreground">
+                    No login history is available.
                   </td>
                 </tr>
               )}
@@ -192,17 +223,17 @@ export default function AdminDashboard() {
           {filteredLogs.length > limit && (
             <div className="flex justify-between items-center mt-4">
               <Button
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg"
+                variant="outline"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               >
                 Previous
               </Button>
-              <span className="text-sm text-gray-300">
+              <span className="text-sm text-muted-foreground">
                 Page {currentPage} of {totalPages}
               </span>
               <Button
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg"
+                variant="outline"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
               >

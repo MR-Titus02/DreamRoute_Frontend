@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { fetchRoadmap, fetchProgress, updateProgress } from "@/api/roadmap";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -7,15 +7,15 @@ import {
 } from "react-vertical-timeline-component";
 import "react-vertical-timeline-component/style.min.css";
 import { Button } from "@/components/ui/button";
-import Navbar from "../components/Navbar";
-import { useLocation } from "react-router-dom";
+import DashboardLayout from "@/layouts/DashboardLayout";
+import { useLocation, useNavigate } from "react-router-dom";
 import PlansModal from "@/components/PlansModal"; // <- Make sure this path is correct
 import { Lock } from "lucide-react";
 
 const STATUS_COLORS = {
-  not_started: { bg: "#1E293B", border: "#475569", text: "#94a3b8" },
-  ongoing: { bg: "#312e81", border: "#6366f1", text: "#a5b4fc" },
-  done: { bg: "#064e3b", border: "#10b981", text: "#6ee7b7" },
+  not_started: { bg: "var(--card)", border: "var(--border)", text: "var(--foreground)" },
+  ongoing: { bg: "var(--accent)", border: "var(--primary)", text: "var(--accent-foreground)" },
+  done: { bg: "var(--success)", border: "var(--success)", text: "var(--background)" },
 };
 
 export default function Roadmap() {
@@ -27,15 +27,29 @@ export default function Roadmap() {
   const [career, setCareer] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progressError, setProgressError] = useState("");
   const [statusMap, setStatusMap] = useState({});
+  const [savingSteps, setSavingSteps] = useState({});
   const [expandedSteps, setExpandedSteps] = useState({});
   const [showPlansModal, setShowPlansModal] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const userId = user?.id || JSON.parse(localStorage.getItem("user"))?.id;
+  const storedUser = localStorage.getItem("user");
+  let storedUserId;
+  try {
+    storedUserId = storedUser ? JSON.parse(storedUser)?.id : undefined;
+  } catch (parseError) {
+    console.error("Failed to read stored user:", parseError);
+  }
+  const userId = user?.id || storedUserId;
 
-  const loadRoadmap = async () => {
-    if (!userId) return;
+  const loadRoadmap = useCallback(async () => {
+    if (!userId) {
+      setError("Your account could not be identified. Please sign in again.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     setRoadmap([]);
@@ -44,9 +58,12 @@ export default function Roadmap() {
     setCareer("");
 
     try {
-      const { career, roadmap, courses, institutions } = await fetchRoadmap(userId);
+      const { career, roadmap = [], courses = [], institutions = [] } = await fetchRoadmap(userId);
+      if (!Array.isArray(roadmap) || !Array.isArray(courses) || !Array.isArray(institutions)) {
+        throw new Error("Unexpected roadmap response.");
+      }
 
-      const flatSteps = Array.isArray(roadmap[0]?.steps)
+      const flatSteps = roadmap.length > 0 && Array.isArray(roadmap[0]?.steps)
         ? roadmap.flatMap((section) =>
             section.steps.map((step) => ({ ...step, section: section.section }))
           )
@@ -54,6 +71,9 @@ export default function Roadmap() {
 
       const progressResponse = await fetchProgress(userId);
       const progressArray = progressResponse?.data || progressResponse;
+      if (!Array.isArray(progressArray)) {
+        throw new Error("Unexpected progress response.");
+      }
       const progressMap = {};
       progressArray.forEach(({ step_id, status }) => {
         progressMap[String(step_id)] = status;
@@ -65,15 +85,16 @@ export default function Roadmap() {
       setInstitutions(institutions);
       setStatusMap(progressMap);
     } catch (err) {
-      setError(err.response?.data?.error || "Something went wrong. Please try again.");
+      console.error("Failed to load roadmap:", err);
+      setError(err.response?.data?.error || "We couldn't load your roadmap. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     loadRoadmap();
-  }, [userId]);
+  }, [loadRoadmap]);
 
   useEffect(() => {
     if (!loading && roadmap.length > 0) {
@@ -103,11 +124,18 @@ export default function Roadmap() {
   }, [loading, roadmap, location.search]);
 
   const handleStatusChange = async (stepId, newStatus) => {
+    const previousStatus = statusMap[stepId] || "not_started";
+    setProgressError("");
     setStatusMap((prev) => ({ ...prev, [stepId]: newStatus }));
+    setSavingSteps((prev) => ({ ...prev, [stepId]: true }));
     try {
       await updateProgress({ userId, stepId, status: newStatus });
     } catch (err) {
       console.error("Failed to update progress:", err);
+      setStatusMap((prev) => ({ ...prev, [stepId]: previousStatus }));
+      setProgressError("Your progress could not be saved. Please try changing the status again.");
+    } finally {
+      setSavingSteps((prev) => ({ ...prev, [stepId]: false }));
     }
   };
 
@@ -117,12 +145,10 @@ export default function Roadmap() {
   };
 
   return (
-    <>
-      <Navbar />
-
-      <div className="min-h-screen bg-gradient-to-b from-[#0f172a] to-[#1e293b] p-6 text-white max-w-full">
-        <h1 className="text-4xl font-bold text-green-400 mb-4 text-center">
-          🎯 Career Recommendation: <span className="text-white">{career || "Not available"}</span>
+    <DashboardLayout>
+      <div className="min-h-screen max-w-full bg-background p-4 text-foreground sm:p-6">
+        <h1 className="mb-4 text-center text-3xl font-bold text-foreground sm:text-4xl">
+          Career recommendation: <span className="text-primary">{career || "Not available"}</span>
         </h1>
 
         {/* Regenerate Button */}
@@ -131,49 +157,52 @@ export default function Roadmap() {
             onClick={() => {
               isPremium ? loadRoadmap() : setShowPlansModal(true);
             }}
-            className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
+            className="rounded-lg"
+            disabled={loading}
           >
-            <span>🔄 Regenerate Roadmap</span>
+            <span>Regenerate roadmap</span>
             {!isPremium && <Lock size={16} className="ml-2 text-yellow-400" />}
           </Button>
         </div>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center h-[300px] text-center text-gray-300 animate-pulse space-y-4">
-            <svg className="animate-spin h-10 w-10 text-purple-500" viewBox="0 0 24 24">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-              />
-            </svg>
-            <p className="text-lg font-medium">Generating your roadmap...</p>
+          <div role="status" className="flex h-[300px] flex-col items-center justify-center space-y-4 text-center text-muted-foreground">
+            <p className="text-lg font-medium">Loading your roadmap…</p>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-600 text-white p-4 rounded-lg mb-6 text-center max-w-2xl mx-auto">
+          <div role="alert" className="mx-auto mb-6 max-w-2xl rounded-lg border border-error/30 bg-destructive/10 p-4 text-center text-error">
             <p className="mb-3">{error}</p>
             <Button
-              className="bg-gradient-to-r from-white to-gray-200 text-red-600 hover:brightness-105"
+              variant="outline"
               onClick={loadRoadmap}
             >
-              🔁 Regenerate Roadmap
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {!loading && !error && roadmap.length === 0 && (
+          <div className="mx-auto max-w-2xl rounded-lg border border-border bg-card p-8 text-center">
+            <h2 className="text-xl font-semibold text-foreground">Your roadmap is empty</h2>
+            <p className="mt-2 text-muted-foreground">
+              Complete your career profile to generate a roadmap tailored to your goals.
+            </p>
+            <Button className="mt-5" onClick={() => navigate("/userdetails")}>
+              Complete profile
             </Button>
           </div>
         )}
 
         {!loading && !error && roadmap.length > 0 && (
-          <VerticalTimeline lineColor="#7c3aed" className="max-w-5xl mx-auto">
+          <>
+          {progressError && (
+            <div role="alert" className="mx-auto mb-5 max-w-5xl rounded-md border border-error/30 bg-destructive/10 p-3 text-sm text-error">
+              {progressError}
+            </div>
+          )}
+          <VerticalTimeline lineColor="var(--border)" className="max-w-5xl mx-auto">
             {roadmap.map((step, index) => {
               const status = statusMap[step.id] || "not_started";
               const expanded = !!expandedSteps[step.id];
@@ -193,7 +222,7 @@ export default function Roadmap() {
                   date={step.section || ""}
                   iconStyle={{
                     background: colors.border,
-                    color: "#fff",
+                    color: "var(--primary-foreground)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -222,7 +251,7 @@ export default function Roadmap() {
                     <h3 className="text-xl font-semibold">{step.label}</h3>
                     <button
                       onClick={(e) => toggleExpand(step.id, e)}
-                      className="text-indigo-300 font-bold text-xl focus:outline-none"
+                      className="rounded px-2 text-primary font-bold text-xl focus-visible:outline-none"
                       aria-label={expanded ? "Collapse details" : "Expand details"}
                       title={expanded ? "Collapse details" : "Expand details"}
                     >
@@ -230,37 +259,37 @@ export default function Roadmap() {
                     </button>
                   </div>
 
-                  <h4 className="text-indigo-300 mb-2">
+                  <h4 className="mb-2 text-muted-foreground">
                     Estimated Time: {step.estimatedTime || "N/A"}
                   </h4>
-                  <p className="text-gray-300 whitespace-pre-line">{step.description}</p>
+                  <p className="whitespace-pre-line text-muted-foreground">{step.description}</p>
 
                   {expanded && step.details && Array.isArray(step.details) && (
-                    <ul className="ml-6 mt-3 text-sm space-y-2 border-l-2 border-indigo-600 pl-4">
+                    <ul className="ml-6 mt-3 space-y-2 border-l-2 border-primary pl-4 text-sm">
                       {step.details.map((sub) => (
                         <li
                           key={sub.id}
-                          className="bg-[#222c3c] p-2 rounded hover:bg-[#3b4758] transition"
+                          className="rounded bg-muted p-2 transition hover:bg-accent"
                           title={sub.description}
                         >
-                          <strong className="text-indigo-300">{sub.label}</strong>: {sub.description}
+                          <strong className="text-primary">{sub.label}</strong>: {sub.description}
                         </li>
                       ))}
                     </ul>
                   )}
 
                   {expanded && step.details && typeof step.details === "string" && (
-                    <div className="mt-3 text-sm text-gray-400 whitespace-pre-line">
+                    <div className="mt-3 whitespace-pre-line text-sm text-muted-foreground">
                       {step.details}
                     </div>
                   )}
 
                   {course && (
-                    <div className="mt-4 p-3 bg-[#222c3c] rounded text-sm border border-indigo-600">
-                      <strong className="text-indigo-300">Course:</strong> {course.title} <br />
-                      <span className="text-gray-400">{course.description}</span>
+                    <div className="mt-4 rounded border border-border bg-muted p-3 text-sm">
+                      <strong className="text-primary">Course:</strong> {course.title} <br />
+                      <span className="text-muted-foreground">{course.description}</span>
                       {institution && (
-                        <div className="mt-2 text-xs text-gray-500">
+                        <div className="mt-2 text-xs text-muted-foreground">
                           <strong>Provided by:</strong> {institution.name} <br />
                           <span>{institution.address}</span>
                         </div>
@@ -271,7 +300,7 @@ export default function Roadmap() {
                   <div className="mt-4">
                     <label
                       htmlFor={`status-${step.id}`}
-                      className="text-sm font-medium text-indigo-300 block mb-1"
+                      className="mb-1 block text-sm font-medium text-foreground"
                     >
                       Change Status:
                     </label>
@@ -279,7 +308,8 @@ export default function Roadmap() {
                       id={`status-${step.id}`}
                       value={status}
                       onChange={(e) => handleStatusChange(step.id, e.target.value)}
-                      className="bg-[#1E293B] text-white border border-[#475569] rounded px-3 py-1 text-sm"
+                      disabled={savingSteps[step.id]}
+                      className="rounded border border-input bg-background px-3 py-2 text-sm text-foreground disabled:opacity-60"
                     >
                       <option value="not_started">Not Started</option>
                       <option value="ongoing">Ongoing</option>
@@ -290,10 +320,11 @@ export default function Roadmap() {
               );
             })}
           </VerticalTimeline>
+          </>
         )}
 
         <PlansModal isOpen={showPlansModal} onClose={() => setShowPlansModal(false)} />
       </div>
-    </>
+    </DashboardLayout>
   );
 }

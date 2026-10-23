@@ -26,17 +26,19 @@ const plans = [
 
 const PlansModal = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const { user } = useAuth();
 
   if (!isOpen) return null;
 
   const handleSubscribe = async (priceId) => {
     if (!user) {
-      alert("Please log in to continue.");
+      setError("Please sign in to continue with checkout.");
       return;
     }
 
     setLoading(true);
+    setError("");
     try {
       const { data } = await api.post("/payment/create-checkout-session", {
         priceId,
@@ -45,31 +47,46 @@ const PlansModal = ({ isOpen, onClose }) => {
       });
 
       const stripe = await stripePromise;
-      await stripe.redirectToCheckout({ sessionId: data.sessionId });
+      const { error: redirectError } = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
+      });
+      if (redirectError) throw redirectError;
     } catch (error) {
       console.error("Stripe checkout error:", error);
-      alert("Something went wrong. Try again later.");
+      setError("Checkout couldn't be started. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Dim background */}
-      <div className="absolute inset-0 bg-black/40 z-40" onClick={onClose} />
+      <button
+        type="button"
+        aria-label="Dismiss plan selection"
+        className="absolute inset-0 z-40 cursor-default bg-black/60"
+        onClick={onClose}
+      />
 
       {/* Modal content */}
-      <div className="z-50 bg-[#1E293B] text-white rounded-2xl shadow-2xl p-6 w-full max-w-5xl relative border border-[#00ADB5]/20">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="plans-title"
+        className="relative z-50 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl"
+      >
         {/* Close button */}
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-white hover:text-red-400"
+          aria-label="Close plan selection"
+          className="absolute right-4 top-4 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <X size={24} />
         </button>
 
-        <h2 className="text-3xl font-bold text-center mb-10 text-[#00ADB5]">
+        <h2 id="plans-title" className="mb-8 text-center text-3xl font-bold text-foreground">
           Choose Your Plan
         </h2>
 
@@ -77,20 +94,20 @@ const PlansModal = ({ isOpen, onClose }) => {
           {plans.map((plan, index) => (
             <div
               key={index}
-              className="bg-[#334155] rounded-xl p-6 flex flex-col justify-between border border-[#00C4CC]/20 shadow-lg hover:scale-105 transition-transform"
+              className="flex flex-col justify-between rounded-xl border border-border bg-background p-6 shadow-sm"
             >
               <div>
-                <h3 className="text-xl font-semibold text-[#00C4CC]">
+                <h3 className="text-xl font-semibold text-primary">
                   {plan.name}
                 </h3>
                 <p className="text-2xl font-bold mt-2">{plan.price}</p>
-                <p className="text-sm mt-2 text-[#EEEEEE99]">
+                <p className="mt-2 text-sm text-muted-foreground">
                   {plan.description}
                 </p>
                 <ul className="mt-4 space-y-1 text-sm">
                   {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <span className="text-green-400">✔</span> {feature}
+                    <li key={i} className="flex items-center gap-2 text-foreground">
+                      <span className="text-success" aria-hidden="true">✔</span> {feature}
                     </li>
                   ))}
                 </ul>
@@ -101,16 +118,21 @@ const PlansModal = ({ isOpen, onClose }) => {
                   <button
                     onClick={() => handleSubscribe(plan.priceId)}
                     disabled={loading}
-                    className="w-full bg-[#00ADB5] text-[#0F172A] font-semibold py-2 rounded-xl hover:bg-[#00C4CC] transition"
+                    className="w-full rounded-xl bg-primary py-2 font-semibold text-primary-foreground transition hover:bg-primary/90"
                   >
                     {loading ? "Redirecting..." : "Subscribe to Pro"}
                   </button>
                 ) : (
-                  <span className="block text-center bg-gray-300 text-gray-700 font-semibold py-2 rounded-xl cursor-default">
+                  <span className="block cursor-default rounded-xl bg-muted py-2 text-center font-semibold text-muted-foreground">
                     ✅ Current Plan
                   </span>
                 )}
               </div>
+              {error && (
+                <p role="alert" className="mt-6 text-center text-sm text-error">
+                  {error}
+                </p>
+              )}
             </div>
           ))}
         </div>

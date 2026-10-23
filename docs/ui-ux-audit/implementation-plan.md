@@ -46,19 +46,29 @@ The sequence preserves existing routes and integrations. Visual work must not no
 - Verification: targeted ESLint passed; production build passed with the existing large-chunk warning; utility tests passed (5/5); browser checks confirmed dark/light switching, persistence across reload and routes, and no horizontal overflow at 320px or 390px on landing, auth, and institution-request screens.
 - Backend-dependent submissions were not tested because the local API is unavailable.
 
-## Phase 5 — Main application dashboards (next)
+## Phase 5 — Main application dashboards (complete)
 
 - Redesign learner, admin, and institution dashboards using only current API data.
 - Make empty/loading/error states explicit; retain real roadmap progress, admin activity, and institution course counts.
 - Remove unsupported or static metrics rather than replacing them with invented values.
+- Reworked the learner dashboard around its career recommendation and roadmap progress, with a five-step preview, accessible progress semantics, loading and recoverable error states.
+- Reworked admin summary cards and login history using the existing `/users/`, `/courses/`, and `/login-logs/` requests. Preserved role filtering and page-size controls; failures no longer appear as real zero counts.
+- Reworked the institution overview around its existing course list, added a course-management route, and clarified missing institution association, loading, and retry/error states.
+- Verification: targeted ESLint passed; production build passed with the existing large-chunk warning; utility tests passed (5/5). Browser checks used mocked responses to verify learner progress, admin counts/logs, institution course count and error feedback, and mobile layout.
+- Backend services were not running, so live dashboard data and server-side response semantics could not be verified.
 
-## Phase 6 — Core product features
+## Phase 6 — Core product features (complete)
 
 - Prioritize roadmap and career visualization, then course discovery and the chatbot.
 - Inspect live frontend contracts first; preserve roadmap status, course/institution associations, premium gating, filters, pagination, and graph interactions.
 - Verify success, empty, failure, and retry behavior for each feature.
+- Migrated roadmap and career visualization into the shared learner workspace, with explicit loading/error/empty feedback and recoverable roadmap progress-save failures. Added fallback graph coordinates for API nodes without positions.
+- Improved course search/filtering, including the existing minimum-price control, keyboard card activation, and an accessible course details dialog. Replaced the placeholder apply alert with an institution email contact link when available.
+- Updated chatbot, legacy navigation, and premium plan modal surfaces for semantic light/dark tokens; improved responsive chat controls and visible checkout errors without changing API contracts or premium gates.
+- Verification: targeted ESLint passed; production build passed with the existing large-chunk warning; utility tests passed (5/5); `git diff --check` passed. Mocked browser checks covered course filters/dialog/Escape/contact link, mobile overflow at 320px, career graph rendering without API node positions, and roadmap save rollback/error feedback.
+- Backend-dependent behavior could not be verified because the local API service was unavailable. A final fresh React Flow console-warning check remains outstanding.
 
-## Phase 7 — Forms, tables, and secondary workflows
+## Phase 7 — Forms, tables, and secondary workflows (next)
 
 - Migrate admin CRUD, institution course management/settings, learner settings/analytics, feedback, course submission, and plans/payment screens.
 - Separate implemented API behavior from local-only prototypes; do not imply persistence where no endpoint exists.
