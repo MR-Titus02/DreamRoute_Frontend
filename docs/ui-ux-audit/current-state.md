@@ -12,14 +12,14 @@ This audit covers the `client` repository: its React/Vite source, routes, shared
 - **UI primitives:** Locally maintained shadcn-style wrappers around Radix primitives in `src/components/ui`; many page styles still bypass them with page-specific classes and literal colors.
 - **Icons and motion:** Lucide is used in shared layouts and some screens; custom inline SVGs, emoji, and Heroicons dependency coexist. Framer Motion is used on the landing page. React Flow, a separate React Flow v11 dependency, Recharts, and a vertical timeline library support feature screens.
 - **Forms and state:** Local React state and native controls dominate. React Hook Form and Zod are installed, but most inspected forms use ad hoc state and inline checks. Auth state is held in `AuthContext`; there is no app-wide data cache/provider in `main.jsx`.
-- **API and payments:** Axios is configured in `src/api/axios.js`; several feature screens instead call Axios directly or use hard-coded API origins. Stripe Elements is initialized at app level, with other Stripe initializers in feature components/utilities.
+- **API and payments:** Frontend requests use the shared Axios client in `src/api/axios.js`, configured with `VITE_API_URL` (including the `/api` prefix); the same-origin `/api` path is the fallback. Stripe public configuration and plan price IDs are environment values.
 - **Assets and fonts:** `index.html` loads Kaisei Tokumin, Inter, and Arimo from Google Fonts. The hero background image is approximately 2.65 MB in the production build.
 
 ## Authentication and authorization
 
 `AuthContext` restores a serialized user and token from `localStorage`, exposes login/logout, and reports initial loading. `ProtectedRoute` uses those values and checks role equality when a `role` prop is provided. The admin and institution management routes are role-gated; several learner-facing routes and institution request/payment routes are not wrapped by `ProtectedRoute` in the current router. Login, registration, and OAuth redirect determine role-specific destinations.
 
-The API request interceptor logs the stored auth token to the browser console. This is an operational and privacy risk that should be removed in a separately scoped fix; no credential values are copied into this audit.
+The API request interceptor attaches the stored auth token as a bearer token without logging its value. Backend authorization and production CORS behavior cannot be verified from this frontend repository.
 
 ## Styling and interaction findings
 
@@ -31,7 +31,7 @@ The API request interceptor logs the stored auth token to the browser console. T
 6. **Data states are incomplete.** Some pages show a loading message, but empty/error/retry states are often missing or inconsistent. The courses screen has a useful empty state; admin/institution CRUD pages rely largely on console logging for failures.
 7. **Accessibility needs systematic work.** Some labels are not connected to controls; clickable cards and rating stars are not consistently keyboard operable; some controls omit accessible names or visible focus treatment; error text is not consistently announced. Reduced-motion support is not established globally.
 8. **Content credibility needs review.** The public landing page includes success metrics and institution/student counts that are hard-coded and not backed by the inspected API. `Index.jsx` contains additional unsupported claims and stats, but is not routed. Avoid carrying these figures into a redesigned public experience.
-9. **Routing and integration are fragmented.** There are duplicate roadmap entries, route paths written inconsistently with/without a leading slash, one unrouted `Index.jsx`, and a `/test` page with an unregistered `/get-started` CTA. Several endpoints use localhost directly; `api/roadmap.js` imports Axios directly rather than the configured API client.
+9. **Routing and integration are fragmented.** There are duplicate roadmap entries, route paths written inconsistently with/without a leading slash, one unrouted `Index.jsx`, and a `/test` page with an unregistered `/get-started` CTA. These are recorded audit observations; frontend API URL configuration is now centralized through the shared Axios client.
 10. **Production size merits later measurement.** The baseline build succeeds but emits a chunk-size warning: the main JS chunk is about 868 kB minified and the hero background is about 2.65 MB. Optimize only after route usage and visual requirements are confirmed.
 
 ## Baseline verification (before Phase 1)

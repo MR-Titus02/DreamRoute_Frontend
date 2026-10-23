@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import api from "@/api/axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import {
   DialogTrigger,
   DialogContent,
   DialogClose,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import InstitutionDashboardLayout from "../layouts/InstitutionLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -21,28 +23,48 @@ export default function ManageCourses() {
     price: "",
   });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isWorking, setIsWorking] = useState(false);
+  const [message, setMessage] = useState("");
 
   const { user } = useAuth();
 
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     try {
       const res = await api.get(`/institutions/${user.institution_id}/courses`);
+      if (!Array.isArray(res.data)) throw new Error("Unexpected courses response.");
       setCourses(res.data);
+      return true;
     } catch (err) {
       console.error("Error fetching courses:", err);
+      setMessage("We couldn't load your courses. Check your connection and try again.");
+      return false;
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [user?.institution_id]);
 
   useEffect(() => {
-    if (user?.institution_id) fetchCourses();
-  }, [user]);
+    if (user?.institution_id) {
+      fetchCourses();
+    } else {
+      setLoading(false);
+    }
+  }, [fetchCourses, user?.institution_id]);
 
   const handleDelete = async (id) => {
+    if (!window.confirm("Delete this course? This action cannot be undone.")) return;
+    setIsWorking(true);
+    setMessage("");
     try {
       await api.delete(`/courses/${id}`);
-      fetchCourses();
+      const refreshed = await fetchCourses();
+      setMessage(refreshed ? "Course deleted." : "Course deleted, but the course list could not be refreshed.");
     } catch (err) {
       console.error("Error deleting course:", err);
+      setMessage("We couldn't delete the course. Please try again.");
+    } finally {
+      setIsWorking(false);
     }
   };
 
@@ -53,15 +75,17 @@ export default function ManageCourses() {
       !formData.duration?.trim() ||
       !formData.price?.trim()
     ) {
-      alert("Please fill all fields before submitting.");
+      setMessage("Please fill all fields before submitting.");
       return;
     }
 
     if (isNaN(Number(formData.price)) || Number(formData.price) < 0) {
-      alert("Price must be a valid positive number.");
+      setMessage("Price must be a valid non-negative number.");
       return;
     }
 
+    setIsWorking(true);
+    setMessage("");
     try {
       if (editingCourse) {
         await api.put(`/courses/${editingCourse.id}`, formData);
@@ -76,9 +100,15 @@ export default function ManageCourses() {
       setEditingCourse(null);
       setFormData({ title: "", description: "", duration: "", price: "" });
       setDialogOpen(false);
-      fetchCourses();
+      const refreshed = await fetchCourses();
+      setMessage(refreshed
+        ? editingCourse ? "Course updated." : "Course created."
+        : "Course saved, but the course list could not be refreshed.");
     } catch (err) {
       console.error("Error submitting course:", err);
+      setMessage("We couldn't save the course. Please try again.");
+    } finally {
+      setIsWorking(false);
     }
   };
 
@@ -88,7 +118,7 @@ export default function ManageCourses() {
       title: course.title || "",
       description: course.description || "",
       duration: course.duration || "",
-      price: course.price || "",
+      price: String(course.price ?? ""),
     });
     setDialogOpen(true);
   };
@@ -115,44 +145,64 @@ export default function ManageCourses() {
               </Button>
             </DialogTrigger>
             <DialogContent className="bg-[#3B4758] text-white border border-[#475569] max-w-md">
-              <h3 className="text-lg font-semibold mb-4">
+              <DialogTitle className="mb-4 text-lg font-semibold">
                 {editingCourse ? "Edit Course" : "Add New Course"}
-              </h3>
-              <div className="space-y-4">
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Enter course details to {editingCourse ? "update" : "create"} a course.
+              </DialogDescription>
+              <form
+                className="space-y-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleSubmit();
+                }}
+              >
                 <Input
+                  aria-label="Course title"
                   placeholder="Title"
                   value={formData.title}
+                  required
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
                   }
                 />
                 <Input
+                  aria-label="Course description"
                   placeholder="Description"
                   value={formData.description}
+                  required
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
                 />
                 <Input
+                  aria-label="Course duration"
                   placeholder="Duration"
                   value={formData.duration}
+                  required
                   onChange={(e) =>
                     setFormData({ ...formData, duration: e.target.value })
                   }
                 />
                 <Input
+                  aria-label="Course price"
                   placeholder="Price"
+                  type="number"
+                  min="0"
                   value={formData.price}
+                  required
                   onChange={(e) =>
                     setFormData({ ...formData, price: e.target.value })
                   }
                 />
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleSubmit}
+                    type="submit"
+                    disabled={isWorking}
                     className="bg-[#00ADB5] text-white flex-1"
                   >
-                    {editingCourse ? "Update" : "Create"}
+                    {isWorking ? "Saving…" : editingCourse ? "Update" : "Create"}
                   </Button>
                   <DialogClose asChild>
                     <Button
@@ -173,51 +223,71 @@ export default function ManageCourses() {
                     </Button>
                   </DialogClose>
                 </div>
-              </div>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
 
+        {message && (
+          <p role={message.startsWith("We couldn't") ? "alert" : "status"} className="text-sm text-muted-foreground">
+            {message}
+          </p>
+        )}
+
         {/* Course Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-  {courses.map((course) => (
-    <div
-      key={course.id}
-      className="bg-[#3B4758] p-5 rounded-xl shadow-md space-y-3"
-    >
-      <div>
-        <h4 className="text-xl font-semibold text-white">
-          {course.title || "Untitled Course"}
-        </h4>
-        <p className="text-sm text-gray-300">
-          {course.description?.trim() || "No description provided."}
-        </p>
-      </div>
-      <div className="text-sm text-gray-400">
-        Duration: {course.duration?.trim() || "Flexible"}
-      </div>
-      <div className="text-sm text-gray-400">
-        Price: ₹{course.price ? course.price : "Free"}
-      </div>
-      <div className="flex space-x-2 mt-2">
-        <Button
-          onClick={() => openEdit(course)}
-          className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex-1"
-          type="button"
-        >
-          Edit
-        </Button>
-        <Button
-          onClick={() => handleDelete(course.id)}
-            className="bg-gradient-to-r from-red-600 to-red-800 text-white px-4 py-2 rounded-lg shadow-md hover:from-red-700 hover:to-red-900 transition duration-200 flex-1"
-          type="button"
-        >
-          Delete
-        </Button>
-      </div>
-    </div>
-  ))}
-</div>
+        {loading ? (
+          <p role="status" className="py-8 text-center text-muted-foreground">Loading courses…</p>
+        ) : !user?.institution_id ? (
+          <p role="alert" className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
+            Your account is not associated with an institution.
+          </p>
+        ) : courses.length === 0 ? (
+          <p className="rounded-lg border border-border bg-card p-6 text-center text-muted-foreground">
+            No courses are available yet. Add a course to get started.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {courses.map((course) => (
+              <div
+                key={course.id}
+                className="space-y-3 rounded-xl border border-border bg-card p-5 text-card-foreground shadow-sm"
+              >
+                <div>
+                  <h4 className="text-xl font-semibold text-foreground">
+                    {course.title || "Untitled Course"}
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    {course.description?.trim() || "No description provided."}
+                  </p>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Duration: {course.duration?.trim() || "Flexible"}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Price: ₹{course.price ? course.price : "Free"}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    onClick={() => openEdit(course)}
+                    className="flex-1"
+                    type="button"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => handleDelete(course.id)}
+                    disabled={isWorking}
+                    variant="destructive"
+                    className="flex-1"
+                    type="button"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </InstitutionDashboardLayout>
   );

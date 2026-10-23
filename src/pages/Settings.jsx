@@ -8,6 +8,7 @@ import api from "@/api/axios";
 import DashboardLayout from "@/layouts/DashboardLayout"; // ✅ layout wrapper
 import ThemeToggle from "@/components/ThemeToggle";
 import { useTheme } from "next-themes";
+import { Link } from "react-router-dom";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -22,6 +23,8 @@ export default function Settings() {
     emailNotifs: true,
     courseAlerts: true,
   });
+  const [status, setStatus] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -33,12 +36,16 @@ export default function Settings() {
             email: res.data.email || "",
           }));
         })
-        .catch((err) => console.error("Failed to fetch user:", err));
+        .catch((err) => {
+          console.error("Failed to fetch user:", err);
+          setStatus("We couldn't load your account details.");
+        });
     }
   }, [user]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    setStatus("");
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -47,15 +54,19 @@ export default function Settings() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
+    setStatus("");
     try {
       await api.put(`/users/${user.id}`, {
         name: formData.name,
         email: formData.email,
       });
-      alert("Account info updated successfully!");
+      setStatus("Account information updated.");
     } catch (err) {
       console.error("Update failed:", err);
-      alert("Something went wrong while updating.");
+      setStatus("We couldn't update your account information. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -72,39 +83,50 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Input
+                id="settings-name"
                 name="name"
+                aria-label="Full name"
+                autoComplete="name"
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Full Name"
                 className="bg-background text-foreground"
               />
               <Input
+                id="settings-email"
                 name="email"
+                aria-label="Email address"
+                type="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Email"
                 className="bg-background text-foreground"
               />
-              <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <Button variant="secondary" 
-              className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
-              >
-                Change Password
-              </Button>
-              <Button variant="destructive">Delete Account</Button>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                To change your password, use{" "}
+                <Link className="text-primary underline underline-offset-4" to="/forgot-password">
+                  password recovery
+                </Link>
+                . Account deletion is not available from this screen.
+              </p>
             </CardContent>
           </Card>
 
-          {/* Notification Preferences (only frontend for now) */}
+          {/* Notification preferences are not connected to a persistence endpoint yet. */}
           <Card className="bg-card text-card-foreground">
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                These preferences apply only in this session and are not saved to your account.
+              </p>
               <div className="flex items-center justify-between">
-                <label>Email Notifications</label>
+                <label htmlFor="email-notifications">Email Notifications</label>
                 <Switch
+                  id="email-notifications"
+                  aria-label="Email notifications"
                   name="emailNotifs"
                   checked={formData.emailNotifs}
                   onCheckedChange={(checked) =>
@@ -113,8 +135,10 @@ export default function Settings() {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <label>Course Update Alerts</label>
+                <label htmlFor="course-alerts">Course Update Alerts</label>
                 <Switch
+                  id="course-alerts"
+                  aria-label="Course update alerts"
                   name="courseAlerts"
                   checked={formData.courseAlerts}
                   onCheckedChange={(checked) =>
@@ -137,10 +161,15 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          <Button type="submit" 
+          {status && (
+            <p role={status.startsWith("We couldn't") ? "alert" : "status"} className="text-center text-sm text-muted-foreground">
+              {status}
+            </p>
+          )}
+          <Button type="submit" disabled={isSaving || !user?.id}
           className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
           >
-            Save Changes
+            {isSaving ? "Saving…" : "Save Changes"}
           </Button>
         </form>
       </div>

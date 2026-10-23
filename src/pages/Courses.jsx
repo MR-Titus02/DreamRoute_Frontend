@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/api/axios";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,8 +39,8 @@ export default function Courses() {
     setLoadError("");
     try {
       const [coursesRes, institutionsRes] = await Promise.all([
-        axios.get("http://localhost:5001/api/courses"),
-        axios.get("http://localhost:5001/api/institutions"),
+        api.get("/courses"),
+        api.get("/institutions"),
       ]);
 
       const coursesData = coursesRes.data;

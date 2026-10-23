@@ -34,6 +34,9 @@ export default function CourseManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const coursesPerPage = 5; // fixed value, no need state
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isWorking, setIsWorking] = useState(false);
+  const [message, setMessage] = useState("");
   const { user } = useAuth();
 
   const [newCourse, setNewCourse] = useState({
@@ -55,11 +58,18 @@ export default function CourseManagement() {
   }, [user]);
 
   async function fetchCourses() {
+    setLoading(true);
     try {
       const res = await api.get("/courses/");
-      setCourses(res.data || []);
+      if (!Array.isArray(res.data)) throw new Error("Unexpected courses response.");
+      setCourses(res.data);
+      return true;
     } catch (err) {
       console.error("Error fetching courses:", err);
+      setMessage("We couldn't load courses. Check your connection and try again.");
+      return false;
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -69,10 +79,13 @@ export default function CourseManagement() {
       setInstitutions(res.data || []);
     } catch (err) {
       console.error("Error fetching institutions:", err);
+      setMessage("We couldn't load institutions. Course creation is unavailable.");
     }
   }
 
   async function handleCourseAction(courseId, action) {
+    setIsWorking(true);
+    setMessage("");
     try {
       if (action === "approve" || action === "reject") {
         const newStatus = action === "approve" ? "approved" : "rejected";
@@ -81,9 +94,15 @@ export default function CourseManagement() {
         await api.delete(`/courses/${courseId}`);
         setConfirmDeleteId(null);
       }
-      fetchCourses();
+      const refreshed = await fetchCourses();
+      setMessage(refreshed
+        ? action === "delete" ? "Course deleted." : `Course ${action === "approve" ? "approved" : "rejected"}.`
+        : "The course was updated, but the list could not be refreshed.");
     } catch (err) {
       console.error(`Error during ${action} course:`, err?.response?.data || err.message);
+      setMessage(`We couldn't ${action} this course. Please try again.`);
+    } finally {
+      setIsWorking(false);
     }
   }
 
@@ -91,10 +110,12 @@ export default function CourseManagement() {
     const { title, description, duration, price, institution_id, status } = newCourse;
 
     if (!title.trim() || !description.trim() || !institution_id) {
-      alert("Title, description, and institution are required.");
+      setMessage("Title, description, and institution are required.");
       return;
     }
 
+    setIsWorking(true);
+    setMessage("");
     try {
       await api.post("/courses", {
         title,
@@ -114,9 +135,15 @@ export default function CourseManagement() {
         status: "approved",
       });
 
-      fetchCourses();
+      const refreshed = await fetchCourses();
+      setMessage(refreshed
+        ? "Course created."
+        : "Course created, but the course list could not be refreshed.");
     } catch (err) {
       console.error("Error creating course:", err);
+      setMessage("We couldn't create the course. Please try again.");
+    } finally {
+      setIsWorking(false);
     }
   }
 
@@ -124,7 +151,7 @@ export default function CourseManagement() {
   const filteredCourses = courses
     .filter((course) => {
       const matchStatus = statusFilter === "all" || course.status === statusFilter;
-      const matchTitle = course.title.toLowerCase().includes(titleFilter.toLowerCase());
+      const matchTitle = String(course.title || "").toLowerCase().includes(titleFilter.toLowerCase());
       return matchStatus && matchTitle;
     })
     .sort((a, b) => {
@@ -147,7 +174,12 @@ export default function CourseManagement() {
 
   return (
     <AdminLayout>
-      <h2 className="text-3xl font-bold mb-6 text-white">Course Management</h2>
+      <h2 className="mb-6 text-3xl font-bold text-foreground">Course Management</h2>
+      {message && (
+        <p role={message.startsWith("We couldn't") ? "alert" : "status"} className="mb-4 text-sm text-muted-foreground">
+          {message}
+        </p>
+      )}
 
       {user?.role === "admin" && (
         <Card className="bg-[#3B4758] p-6 mb-6 text-white">
@@ -221,13 +253,12 @@ export default function CourseManagement() {
                 : ""
             }`}
             onClick={createCourse}
-            disabled={
+            disabled={isWorking ||
               !newCourse.title.trim() ||
               !newCourse.description.trim() ||
-              !newCourse.institution_id
-            }
+              !newCourse.institution_id}
           >
-            Create Course
+            {isWorking ? "Creating…" : "Create Course"}
           </Button>
         </Card>
       )}
@@ -237,7 +268,10 @@ export default function CourseManagement() {
         <Input
           placeholder="Search by title..."
           value={titleFilter}
-          onChange={(e) => setTitleFilter(e.target.value)}
+          onChange={(e) => {
+            setTitleFilter(e.target.value);
+            setCurrentPage(1);
+          }}
           className="bg-[#1E293B] text-white border-gray-500"
         />
         <Select onValueChange={setStatusFilter} defaultValue="all">
@@ -269,7 +303,11 @@ export default function CourseManagement() {
           <CardTitle>All Courses</CardTitle>
         </CardHeader>
         <CardContent>
-          <table className="w-full text-left">
+          {loading ? (
+            <p role="status" className="py-6 text-center text-muted-foreground">Loading courses…</p>
+          ) : (
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left">
             <thead className="text-gray-300">
               <tr>
                 <th className="py-2">Title</th>
@@ -298,15 +336,16 @@ export default function CourseManagement() {
                   <td className="space-x-2 text-center">
                     {course.status === "pending" && user?.role === "admin" && (
                       <>
-                        <Button onClick={() => handleCourseAction(course.id, "approve")}>Approve</Button>
-                        <Button onClick={() => handleCourseAction(course.id, "reject")}>Reject</Button>
+                            <Button onClick={() => handleCourseAction(course.id, "approve")} disabled={isWorking}>Approve</Button>
+                            <Button onClick={() => handleCourseAction(course.id, "reject")} disabled={isWorking}>Reject</Button>
                       </>
                     )}
                     <Dialog open={confirmDeleteId === course.id} onOpenChange={() => setConfirmDeleteId(null)}>
                       <DialogTrigger asChild>
                         <Button
                          className="bg-gradient-to-r from-red-600 to-red-800 text-white px-4 py-2 rounded-lg shadow-md hover:from-red-700 hover:to-red-900 transition duration-200"
-                         onClick={() => setConfirmDeleteId(course.id)}>
+                         onClick={() => setConfirmDeleteId(course.id)}
+                         disabled={isWorking}>
                           Delete
                         </Button>
                       </DialogTrigger>
@@ -316,8 +355,8 @@ export default function CourseManagement() {
                           Are you sure you want to delete the course "{course.title}"?
                         </DialogDescription>
                         <DialogFooter className="mt-4">
-                          <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
-                          <Button variant="destructive" onClick={() => handleCourseAction(course.id, "delete")}>Delete</Button>
+                          <Button variant="outline" onClick={() => setConfirmDeleteId(null)} disabled={isWorking}>Cancel</Button>
+                          <Button variant="destructive" onClick={() => handleCourseAction(course.id, "delete")} disabled={isWorking}>Delete</Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
@@ -326,6 +365,8 @@ export default function CourseManagement() {
               ))}
             </tbody>
           </table>
+          </div>
+          )}
 
           {/* Pagination Controls */}
           <div className="flex justify-center items-center gap-4 mt-4">

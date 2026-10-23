@@ -4,7 +4,9 @@ import { loadStripe } from "@stripe/stripe-js";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/api/axios";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
+  : Promise.resolve(null);
 
 const plans = [
   {
@@ -37,8 +39,13 @@ const PlansModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    setLoading(true);
     setError("");
+    if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
+      setError("Checkout is not configured. Please contact support.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const { data } = await api.post("/payment/create-checkout-session", {
         priceId,
@@ -47,6 +54,7 @@ const PlansModal = ({ isOpen, onClose }) => {
       });
 
       const stripe = await stripePromise;
+      if (!stripe) throw new Error("Stripe is not configured.");
       const { error: redirectError } = await stripe.redirectToCheckout({
         sessionId: data.sessionId,
       });
@@ -117,10 +125,10 @@ const PlansModal = ({ isOpen, onClose }) => {
                 {plan.isPaid ? (
                   <button
                     onClick={() => handleSubscribe(plan.priceId)}
-                    disabled={loading}
+                    disabled={loading || !import.meta.env.VITE_STRIPE_PUBLIC_KEY}
                     className="w-full rounded-xl bg-primary py-2 font-semibold text-primary-foreground transition hover:bg-primary/90"
                   >
-                    {loading ? "Redirecting..." : "Subscribe to Pro"}
+                    {loading ? "Redirecting..." : !import.meta.env.VITE_STRIPE_PUBLIC_KEY ? "Checkout unavailable" : "Subscribe to Pro"}
                   </button>
                 ) : (
                   <span className="block cursor-default rounded-xl bg-muted py-2 text-center font-semibold text-muted-foreground">

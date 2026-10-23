@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import ReactFlow, { Background, Controls, Handle, Position } from "reactflow";
 import "reactflow/dist/style.css";
-import axios from "axios";
+import api from "@/api/axios";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -104,11 +104,11 @@ export default function CareerRoadmapReactFlow() {
     try {
       let res;
       try {
-        res = await axios.get(`http://localhost:5001/api/career/${userId}`);
+        res = await api.get(`/career/${userId}`);
       } catch (requestError) {
         if (requestError.response?.status !== 404) throw requestError;
-        await axios.post("http://localhost:5001/api/career/generate", { userId });
-        res = await axios.get(`http://localhost:5001/api/career/${userId}`);
+        await api.post("/career/generate", { userId });
+        res = await api.get(`/career/${userId}`);
       }
       if (res.data.type !== "reactflow") throw new Error("Invalid roadmap format.");
 
@@ -161,7 +161,7 @@ export default function CareerRoadmapReactFlow() {
     setLoading(true);
     setError(null);
     try {
-      await axios.post("http://localhost:5001/api/career/generate", { userId });
+      await api.post("/career/generate", { userId });
       await fetchRoadmap();
     } catch (err) {
       console.error("Regenerate error:", err);

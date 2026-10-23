@@ -9,7 +9,7 @@ import {
   Compass,
   Map,
 } from "lucide-react";
-import axios from "axios";
+import api from "@/api/axios";
 import Logo from "@/assets/logo.png";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -81,10 +81,7 @@ export default function LandingPage() {
     setSubmitStatus(null);
 
     try {
-      await axios.post(
-        "http://localhost:5001/api/contact/send",
-        formData,
-      );
+      await api.post("/contact/send", formData);
       setSubmitStatus("success");
       setFormData({ name: "", email: "", phone: "", message: "" });
     } catch {

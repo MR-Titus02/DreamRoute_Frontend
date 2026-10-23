@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../assets/logo.png";
-import axios from "../api/axios";
+import api from "../api/axios";
 import { useAuth } from "@/context/AuthContext";
 import BackButton from "../components/BackButton"; // ✅ Import the BackButton
 import ThemeToggle from "@/components/ThemeToggle";
@@ -47,7 +47,7 @@ function SignUp() {
     setIsSubmitting(true);
     try {
       const payload = { name, email, password, role: "student" };
-      const res = await axios.post("/auth/register", payload);
+      const res = await api.post("/auth/register", payload);
       const { user, token } = res.data;
       login(user, token);
       navigate("/dashboard");

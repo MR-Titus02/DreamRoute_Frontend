@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import InstitutionDashboardLayout from "../layouts/InstitutionLayout";
@@ -15,31 +15,36 @@ export default function InstitutionSettings() {
     email: "",
   });
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user?.institution_id) {
-      fetchInstitutionDetails();
-    }
-  }, [user]);
-
-  const fetchInstitutionDetails = async () => {
+  const fetchInstitutionDetails = useCallback(async () => {
+    if (!user?.institution_id) return;
+    setLoading(true);
     try {
       const res = await api.get(`/institutions/${user.institution_id}`);
       setFormData(res.data);
     } catch (err) {
       console.error("Error fetching institution details:", err);
+      setStatus("We couldn't load institution details. Please refresh and try again.");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [user?.institution_id]);
+
+  useEffect(() => {
+    fetchInstitutionDetails();
+  }, [fetchInstitutionDetails]);
 
   const handleUpdate = async () => {
     try {
       setLoading(true);
+      setStatus("");
       await api.put(`/institutions/${user.institution_id}`, formData);
-      alert("Profile updated successfully.");
+      setStatus("Institution profile updated.");
     } catch (err) {
       console.error("Error updating institution:", err);
-      alert("Update failed.");
+      setStatus("We couldn't update the institution profile. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -52,12 +57,13 @@ export default function InstitutionSettings() {
 
     try {
       setLoading(true);
+      setStatus("");
       await api.delete(`/users/${user.id}`);
       logout();
       navigate("/register");
     } catch (err) {
       console.error("Error deleting institution:", err);
-      alert("Account deletion failed.");
+      setStatus("Account deletion failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -65,31 +71,50 @@ export default function InstitutionSettings() {
 
   return (
     <InstitutionDashboardLayout>
-      <div className="max-w-xl mx-auto bg-[#3B4758] p-6 rounded-xl shadow-lg text-white space-y-6">
+      <div className="mx-auto max-w-xl space-y-6 rounded-xl border border-border bg-card p-6 text-card-foreground shadow-sm">
         <h2 className="text-3xl font-bold mb-4">Institution Settings</h2>
 
         <div className="space-y-4">
+          <label htmlFor="institution-name" className="sr-only">Institution name</label>
           <Input
+            id="institution-name"
             placeholder="Institution Name"
+            aria-label="Institution name"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
+          <label htmlFor="institution-description" className="sr-only">Description</label>
           <Input
+            id="institution-description"
             placeholder="Description"
+            aria-label="Description"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           />
+          <label htmlFor="institution-address" className="sr-only">Address</label>
           <Input
+            id="institution-address"
             placeholder="Address"
+            aria-label="Address"
             value={formData.address}
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
           />
+          <label htmlFor="institution-email" className="sr-only">Email</label>
           <Input
+            id="institution-email"
             placeholder="Email"
+            aria-label="Email"
+            type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           />
         </div>
+
+        {status && (
+          <p role={status.includes("couldn't") || status.includes("failed") ? "alert" : "status"} className="text-sm text-muted-foreground">
+            {status}
+          </p>
+        )}
 
         <div className="flex gap-4 mt-6">
           <Button

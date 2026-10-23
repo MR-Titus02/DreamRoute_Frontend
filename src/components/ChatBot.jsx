@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "../api/axios";
+import api from "../api/axios";
 import { X, Send, MessageSquare } from "lucide-react";
 
 const MAX_LENGTH = 300;
@@ -27,7 +27,7 @@ const ChatBot = ({ userId }) => {
     setIsTyping(true);
 
     try {
-      const res = await axios.post("/chat", {
+      const res = await api.post("/chat", {
         message,
         userId,
       });

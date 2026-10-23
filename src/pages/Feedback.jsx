@@ -15,7 +15,7 @@ function Feedback() {
     message: "",
   });
   const [focusedField, setFocusedField] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [submissionNotice, setSubmissionNotice] = useState("");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value, target: "" });
@@ -27,10 +27,7 @@ function Feedback() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Feedback submitted:", formData);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
-    setFormData({ name: "", type: "institution", target: "", rating: 0, message: "" });
+    setSubmissionNotice("Feedback is not connected to a submission service yet. Nothing has been sent or saved.");
   };
 
   const options = formData.type === "institution" ? institutions : courses;
@@ -58,12 +55,16 @@ function Feedback() {
           <p className="text-sm text-center text-white/70 mb-6">
             Help us improve by rating your experience
           </p>
+          <p className="mb-5 rounded-lg border border-white/20 bg-white/5 p-3 text-sm text-white/80">
+            This form is a preview. The institution and course options are sample data; feedback is not sent or saved.
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Name */}
             <div>
-              <label className="block text-sm mb-1 text-white/80">Your Name</label>
+              <label htmlFor="feedback-name" className="block text-sm mb-1 text-white/80">Your Name</label>
               <input
+                id="feedback-name"
                 type="text"
                 name="name"
                 value={formData.name}
@@ -82,8 +83,9 @@ function Feedback() {
 
             {/* Type Selection */}
             <div>
-              <label className="block text-sm mb-1 text-white/80">Feedback For</label>
+              <label htmlFor="feedback-type" className="block text-sm mb-1 text-white/80">Feedback For</label>
               <select
+                id="feedback-type"
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
@@ -100,6 +102,7 @@ function Feedback() {
                 {formData.type === "institution" ? "Institution" : "Course"} Name
               </label>
               <select
+                aria-label={`${formData.type === "institution" ? "Institution" : "Course"} name`}
                 name="target"
                 value={formData.target}
                 onChange={(e) => setFormData({ ...formData, target: e.target.value })}
@@ -118,25 +121,29 @@ function Feedback() {
             {/* Star Rating */}
             <div>
               <label className="block text-sm mb-1 text-white/80">Your Rating</label>
-              <div className="flex gap-1">
+              <div className="flex gap-1" role="group" aria-label="Your rating">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <span
+                  <button
                     key={star}
-                    className={`cursor-pointer text-2xl transition ${
+                    type="button"
+                    aria-label={`${star} ${star === 1 ? "star" : "stars"}`}
+                    aria-pressed={formData.rating === star}
+                    className={`rounded p-1 text-2xl transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00ADB5] ${
                       formData.rating >= star ? "text-yellow-400" : "text-white/30"
                     }`}
                     onClick={() => handleRating(star)}
                   >
                     ★
-                  </span>
+                  </button>
                 ))}
               </div>
             </div>
 
             {/* Message */}
             <div>
-              <label className="block text-sm mb-1 text-white/80">Your Message</label>
+              <label htmlFor="feedback-message" className="block text-sm mb-1 text-white/80">Your Message</label>
               <textarea
+                id="feedback-message"
                 name="message"
                 value={formData.message}
                 onFocus={() => setFocusedField("message")}
@@ -156,12 +163,12 @@ function Feedback() {
               type="submit"
               className="w-full bg-gradient-to-r from-[#00ADB5] to-[#00C4CC] text-white font-semibold py-2 rounded-lg hover:from-[#00C4CC] hover:to-[#00ADB5] transition-all hover:shadow-lg hover:scale-[1.01]"
             >
-              Submit Feedback
+              Preview Feedback
             </button>
 
-            {submitted && (
-              <p className="text-center text-green-400 mt-2">
-                Thank you! Your feedback has been received.
+            {submissionNotice && (
+              <p role="status" className="mt-2 text-center text-amber-200">
+                {submissionNotice}
               </p>
             )}
           </form>

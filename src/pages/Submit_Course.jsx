@@ -15,7 +15,7 @@ const InstitutionCourse = () => {
     price: "",
   });
 
-  const [submitted, setSubmitted] = useState(false);
+  const [submissionNotice, setSubmissionNotice] = useState("");
   const [focused, setFocused] = useState("");
 
   const handleChange = (e) => {
@@ -27,19 +27,7 @@ const InstitutionCourse = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Course Request Submitted:", formData);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
-    setFormData({
-      courseName: "",
-      description: "",
-      category: "",
-      difficulty: "Beginner",
-      duration: "",
-      mode: "Online",
-      link: "",
-      price: "",
-    });
+    setSubmissionNotice("Course submissions are not connected to the backend yet. Nothing has been sent or saved.");
   };
 
   const itCategories = [
@@ -97,7 +85,7 @@ const InstitutionCourse = () => {
         <div className="w-full max-w-2xl bg-white/10 backdrop-blur-xl rounded-2xl p-4 border border-white/20 shadow-xl">
           <h2 className="text-2xl font-bold text-center ">Request to Add a Course</h2>
           <p className="text-center text-sm text-white/70 mb-1">
-            Submit course details to be reviewed and added by an admin.
+            Course submission is not connected to the service yet. This form does not save or send course details.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -243,12 +231,12 @@ const InstitutionCourse = () => {
               type="submit"
               className="w-full bg-gradient-to-r from-[#00ADB5] to-[#00C4CC] text-white font-semibold py-2 rounded-lg hover:from-[#00C4CC] hover:to-[#00ADB5] transition-all hover:shadow-lg hover:scale-[1.01]"
             >
-              Submit Course Request
+              Preview Course Details
             </button>
 
-            {submitted && (
-              <p className="text-center text-green-400 mt-2">
-                Course request sent successfully.
+            {submissionNotice && (
+              <p role="status" className="mt-2 text-center text-amber-200">
+                {submissionNotice}
               </p>
             )}
           </form>

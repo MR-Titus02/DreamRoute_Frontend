@@ -66,13 +66,17 @@ The sequence preserves existing routes and integrations. Visual work must not no
 - Improved course search/filtering, including the existing minimum-price control, keyboard card activation, and an accessible course details dialog. Replaced the placeholder apply alert with an institution email contact link when available.
 - Updated chatbot, legacy navigation, and premium plan modal surfaces for semantic light/dark tokens; improved responsive chat controls and visible checkout errors without changing API contracts or premium gates.
 - Verification: targeted ESLint passed; production build passed with the existing large-chunk warning; utility tests passed (5/5); `git diff --check` passed. Mocked browser checks covered course filters/dialog/Escape/contact link, mobile overflow at 320px, career graph rendering without API node positions, and roadmap save rollback/error feedback.
-- Backend-dependent behavior could not be verified because the local API service was unavailable. A final fresh React Flow console-warning check remains outstanding.
+- Backend-dependent behavior could not be verified because the local API service was unavailable. Production browser verification rendered the graph and premium plan dialog without React Flow type-map warnings; the development-only strict-mode warning remains.
 
-## Phase 7 — Forms, tables, and secondary workflows (next)
+## Phase 7 — Forms, tables, and secondary workflows (complete)
 
 - Migrate admin CRUD, institution course management/settings, learner settings/analytics, feedback, course submission, and plans/payment screens.
 - Separate implemented API behavior from local-only prototypes; do not imply persistence where no endpoint exists.
 - Improve table/list patterns, validation, confirmation, and user-visible result messages.
+- Centralized all frontend API requests through `src/api/axios.js`; `VITE_API_URL` now controls the base URL, defaults to same-origin `/api`, and is documented in `.env.example` and the README. Google OAuth uses the shared client's resolved URL.
+- Added loading, empty, retry, validation, confirmation, and announced result/error states across admin and institution CRUD, learner settings and analytics, and payment checkout. Feedback and course-submission pages now clearly disclose that they are previews and do not persist submissions.
+- Checkout still uses the existing Stripe product price identifiers; the Stripe public key remains configured through the environment.
+- Verification: targeted lint, production build, utility tests, and diff checks pass. Mocked browser verification confirms a non-premium plan dialog opens/closes and a production career map renders without React Flow type-map warnings. The local backend is unavailable, so API success/failure contracts and live checkout cannot be verified.
 
 ## Phase 8 — Responsive design and accessibility
 

@@ -73,6 +73,16 @@
 - Verification: targeted ESLint passed; production build passed with the existing large-chunk warning; utility tests passed (5/5); `git diff --check` passed. Mocked browser checks covered filtering, dialog/Escape/contact interaction, 320px overflow, missing graph coordinates, roadmap save failure rollback, and the career-map plan gate opening/closing. The production browser check rendered a mocked graph without React Flow type-map warnings. Vite development still reports React Flow error-002 during strict-mode rendering despite the stable node type map.
 - Backend-dependent requests could not be verified because the local API service is unavailable.
 
+## Phase 7 — Forms, tables, and secondary workflows
+
+**Status:** Complete for the migrated CRUD, settings, analytics, feedback/course preview, and payment screens.
+
+- Consolidated all API requests behind the configured Axios client. `VITE_API_URL` is the single backend base-URL setting (with `/api` as a same-origin fallback); removed direct localhost requests and a token-value console log. Added `.env.example` and documented local/hosted build-time environment configuration.
+- Improved admin course/institution/user management and institution course/settings workflows with loading/empty/error feedback, confirmation for destructive actions, result messages, and safer responsive tables/lists.
+- Added learner analytics retry/error states and surfaced account save outcomes. Clearly marked notification preferences as session-only. Feedback and course submission no longer log personal data or falsely report a successful backend submission; both are identified as non-persistent previews because no endpoint is present in this frontend.
+- Payment checkout failures are announced, and the selected plan is restored when entering payment. Existing Stripe price identifiers and checkout payloads are preserved.
+- Verification: targeted ESLint passed; production build passed with the existing large-chunk warning; utility tests passed (5/5); `git diff --check` passed. Mocked browser checks confirmed the configured API base path, admin user listing and delete-dialog open/close, selected free-plan restoration, and the non-persistent feedback notice. Backend-dependent CRUD and payment behavior remain unverified because the local API is unavailable.
+
 ## Next phase
 
-**Phase 7 — Forms, tables, and secondary workflows.** Migrate remaining admin/institution CRUD, learner settings/analytics, feedback, course submission, and plans/payment screens while preserving existing API behavior.
+**Phase 8 — Responsive design and accessibility.** Review migrated routes at mobile, tablet, and desktop sizes; audit keyboard, contrast, semantic names, modal behavior, touch targets, reduced motion, and overflow.

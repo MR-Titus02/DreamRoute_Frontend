@@ -24,7 +24,7 @@ function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:5001/api/auth/google";
+    window.location.assign(api.getUri({ url: "/auth/google" }));
   };
 
   const handleSubmit = async (e) => {
