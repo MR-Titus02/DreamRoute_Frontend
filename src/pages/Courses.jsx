@@ -31,8 +31,8 @@ export default function Courses() {
     const fetchCoursesAndInstitutions = async () => {
       try {
         const [coursesRes, institutionsRes] = await Promise.all([
-          axios.get("https://api.dreamroute.edu.lk/api/courses"),
-          axios.get("https://api.dreamroute.edu.lk/api/institutions"),
+          axios.get("http://localhost:5001/api/courses"),
+          axios.get("http://localhost:5001/api/institutions"),
         ]);
 
         const coursesData = coursesRes.data;

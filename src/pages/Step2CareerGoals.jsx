@@ -49,16 +49,18 @@ const Step2CareerGoals = ({ onNext, onBack, initialValues = {} }) => {
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-[#1F2D3D] p-6 rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4 text-white">Step 2: Career Goals</h2>
-      <div className="space-y-4 text-white">
+    <div className="max-w-xl mx-auto bg-card p-6 rounded-lg shadow text-card-foreground">
+      <h2 className="text-xl font-bold mb-4 text-foreground">Step 2: Career Goals</h2>
+      <div className="space-y-4 text-foreground">
         {/* Preferred Career */}
         <div>
+          <label htmlFor="preferred-career" className="mb-1 block text-sm font-medium">Preferred career</label>
           <select
+            id="preferred-career"
             name="preferredCareer"
             value={form.preferredCareer}
             onChange={handleChange}
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           >
             <option value="">Select Preferred Career</option>
             {[
@@ -70,13 +72,13 @@ const Step2CareerGoals = ({ onNext, onBack, initialValues = {} }) => {
             ))}
           </select>
           {errors.preferredCareer && (
-            <p className="text-red-400 text-sm mt-1">{errors.preferredCareer}</p>
+            <p role="alert" className="text-error text-sm mt-1">{errors.preferredCareer}</p>
           )}
         </div>
 
         {/* Interest Areas - Tag Style */}
         <div>
-          <label className="block mb-2">Interest Areas:</label>
+          <span className="mb-2 block text-sm font-medium">Interest areas:</span>
           <div className="flex flex-wrap gap-2">
             {interestOptions.map((interest) => {
               const isSelected = form.interestAreas.includes(interest);
@@ -87,9 +89,10 @@ const Step2CareerGoals = ({ onNext, onBack, initialValues = {} }) => {
                   onClick={() => toggleInterest(interest)}
                   className={`px-3 py-1 rounded-full border transition ${
                     isSelected
-                      ? 'bg-[#00ADB5] text-white border-[#00ADB5]'
-                      : 'bg-[#101C2B] text-gray-300 border-gray-600 hover:border-[#00ADB5]'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-foreground border-border hover:border-primary'
                   }`}
+                    aria-pressed={isSelected}
                 >
                   {interest}
                 </button>
@@ -97,45 +100,51 @@ const Step2CareerGoals = ({ onNext, onBack, initialValues = {} }) => {
             })}
           </div>
           {errors.interestAreas && (
-            <p className="text-red-400 text-sm mt-1">{errors.interestAreas}</p>
+            <p role="alert" className="text-error text-sm mt-1">{errors.interestAreas}</p>
           )}
         </div>
 
         {/* Short Term Goals */}
         <div>
+          <label htmlFor="short-term-goals" className="mb-1 block text-sm font-medium">Short-term goals <span className="font-normal text-muted-foreground">(optional)</span></label>
           <textarea
+            id="short-term-goals"
             name="shortTermGoals"
             value={form.shortTermGoals}
             onChange={handleChange}
             placeholder="Short Term Goals (optional)"
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           />
         </div>
 
         {/* Long Term Goals */}
         <div>
+          <label htmlFor="long-term-goals" className="mb-1 block text-sm font-medium">Long-term goals <span className="font-normal text-muted-foreground">(optional)</span></label>
           <textarea
+            id="long-term-goals"
             name="longTermGoals"
             value={form.longTermGoals}
             onChange={handleChange}
             placeholder="Long Term Goals (optional)"
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           />
         </div>
 
         {/* Dream Company */}
+        <label htmlFor="dream-company" className="mb-1 block text-sm font-medium">Dream company <span className="font-normal text-muted-foreground">(optional)</span></label>
         <input
+          id="dream-company"
           name="dreamCompany"
           value={form.dreamCompany}
           onChange={handleChange}
           placeholder="Dream Company (optional)"
-          className="w-full p-2 rounded bg-[#101C2B] text-white"
+          className="w-full rounded border border-input bg-background p-2 text-foreground"
         />
 
         {/* Navigation Buttons */}
         <div className="flex justify-between pt-4">
-          <button onClick={onBack} className="bg-gray-600 px-4 py-2 rounded">Back</button>
-          <button onClick={handleSubmit} className="bg-[#00ADB5] px-4 py-2 rounded">Next</button>
+          <button type="button" onClick={onBack} className="bg-secondary text-secondary-foreground px-4 py-2 rounded">Back</button>
+          <button type="button" onClick={handleSubmit} className="bg-primary text-primary-foreground px-4 py-2 rounded">Next</button>
         </div>
       </div>
     </div>

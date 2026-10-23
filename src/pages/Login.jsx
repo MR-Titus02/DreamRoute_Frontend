@@ -4,6 +4,7 @@ import api from "../api/axios";
 import Logo from "../assets/logo.png";
 import { useAuth } from "@/context/AuthContext";
 import BackButton from "../components/BackButton"; 
+import ThemeToggle from "@/components/ThemeToggle";
 
 function Login() {
   const { login } = useAuth();
@@ -12,6 +13,7 @@ function Login() {
   const [focusedField, setFocusedField] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,11 +24,13 @@ function Login() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "https://api.dreamroute.edu.lk/api/auth/google";
+    window.location.href = "http://localhost:5001/api/auth/google";
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setIsSubmitting(true);
     try {
       const res = await api.post("/auth/login", formData);
       const { user, token } = res.data;
@@ -43,15 +47,20 @@ function Login() {
       console.error("Login error:", err.response?.data || err.message);
       const serverMsg = err.response?.data?.message || "Something went wrong";
       setError(serverMsg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#222831] via-[#393E46] to-[#222831] flex items-center justify-center relative overflow-hidden px-4">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center relative overflow-hidden px-4 py-20">
 
       {/* Top-left back button */}
       <div className="absolute top-4 left-4 z-10">
         <BackButton to="/" label="Back" />
+      </div>
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
       </div>
 
       {/* Animated Background */}
@@ -62,14 +71,14 @@ function Login() {
       </div>
 
       {/* Login Form */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/20">
+      <div className="w-full max-w-md bg-card rounded-2xl p-6 shadow-xl border border-border">
         {/* Logo + Heading */}
         <div className="flex flex-col items-center mb-6">
           <img src={Logo} alt="DreamRoute" className="w-20 h-20 mb-2 rounded-lg" />
-          <h2 className="text-2xl font-bold text-white text-center mb-1 font-inter">
+          <h2 className="text-2xl font-bold text-foreground text-center mb-1 font-inter">
             Welcome Back to <span className="text-[#00ADB5]">DreamRoute</span>
           </h2>
-          <p className="text-white/70 text-sm text-center font-inter">
+          <p className="text-muted-foreground text-sm text-center font-inter">
             Please sign in to continue your journey
           </p>
         </div>
@@ -78,20 +87,21 @@ function Login() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Email */}
           <div>
-            <label className="block text-sm font-semibold text-white/90 mb-1 font-inter">
+            <label htmlFor="login-email" className="block text-sm font-semibold text-foreground mb-1 font-inter">
               Email Address
             </label>
             <input
               type="email"
+              id="login-email"
               name="email"
               value={formData.email}
               onChange={handleInputChange}
               onFocus={() => setFocusedField("email")}
               onBlur={() => setFocusedField("")}
-              className={`w-full px-4 py-2 bg-white/10 border text-white rounded-lg placeholder-white/50 transition ${
+              className={`w-full px-4 py-2 bg-background border text-foreground rounded-lg placeholder:text-muted-foreground transition ${
                 focusedField === "email"
-                  ? "border-[#00ADB5] shadow-md bg-white/20"
-                  : "border-white/30 hover:border-white/50"
+                  ? "border-primary shadow-md"
+                  : "border-input hover:border-ring"
               }`}
               placeholder="Enter your email"
               required
@@ -100,20 +110,21 @@ function Login() {
 
           {/* Password */}
           <div className="relative">
-            <label className="block text-sm font-semibold text-white/90 mb-1 font-inter">
+            <label htmlFor="login-password" className="block text-sm font-semibold text-foreground mb-1 font-inter">
               Password
             </label>
             <input
               type={showPassword ? "text" : "password"}
+              id="login-password"
               name="password"
               value={formData.password}
               onChange={handleInputChange}
               onFocus={() => setFocusedField("password")}
               onBlur={() => setFocusedField("")}
-              className={`w-full px-4 py-2 bg-white/10 border text-white rounded-lg placeholder-white/50 transition ${
+              className={`w-full px-4 py-2 bg-background border text-foreground rounded-lg placeholder:text-muted-foreground transition ${
                 focusedField === "password"
-                  ? "border-[#00ADB5] shadow-md bg-white/20"
-                  : "border-white/30 hover:border-white/50"
+                  ? "border-primary shadow-md"
+                  : "border-input hover:border-ring"
               }`}
               placeholder="Enter your password"
               required
@@ -121,8 +132,7 @@ function Login() {
             <button
               type="button"
               onClick={toggleShowPassword}
-              className="absolute right-3 top-[38px] text-white/70 hover:text-white"
-              tabIndex={-1}
+              className="absolute right-3 top-[38px] text-muted-foreground hover:text-foreground"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
@@ -142,14 +152,14 @@ function Login() {
           </div>
 
           {error && (
-            <p className="text-red-400 bg-white/10 p-2 rounded text-sm text-center font-inter">{error}</p>
+            <p role="alert" className="text-error bg-destructive/10 p-2 rounded text-sm text-center font-inter">{error}</p>
           )}
 
-          <p className="text-right text-sm text-white/70 font-inter mt-1">
+          <p className="text-right text-sm text-muted-foreground font-inter mt-1">
             <button
               type="button"
               onClick={() => navigate("/forgot-password")}
-              className="text-[#00ADB5] hover:text-[#00C4CC] font-semibold transition"
+              className="text-primary hover:opacity-80 font-semibold transition"
             >
               Forgot Password?
             </button>
@@ -158,19 +168,20 @@ function Login() {
           {/* Submit */}
           <button
             type="submit"
-            className="w-full py-2 mt-1 rounded-lg bg-gradient-to-r from-[#00ADB5] to-[#00C4CC] hover:from-[#00C4CC] hover:to-[#00ADB5] text-white font-bold shadow-lg hover:shadow-xl transition-transform duration-300 hover:scale-105 font-inter"
+            disabled={isSubmitting}
+            className="w-full py-2 mt-1 rounded-lg bg-primary text-primary-foreground font-bold shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 font-inter"
           >
-            Sign In
+            {isSubmitting ? "Signing in…" : "Sign In"}
           </button>
 
           {/* Divider */}
-          <div className="relative my-4 text-center text-sm text-white/60 font-inter">or continue with</div>
+          <div className="relative my-4 text-center text-sm text-muted-foreground font-inter">or continue with</div>
 
           {/* Social Buttons */}
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              className="flex items-center justify-center py-2 border border-white/20 rounded-lg bg-white/5 hover:bg-white/10 text-white transition"
+              className="flex items-center justify-center py-2 border border-border rounded-lg bg-background hover:bg-muted text-foreground transition"
               onClick={handleGoogleLogin}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -185,7 +196,7 @@ function Login() {
             <button
   type="button"
   onClick={() => window.location.href = "http://ec2-3-27-187-10.ap-southeast-2.compute.amazonaws.com:5000/auth/github"}
-  className="flex items-center justify-center gap-2 py-2 border border-white/20 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-white text-sm"
+  className="flex items-center justify-center gap-2 py-2 border border-border rounded-lg bg-background hover:bg-muted transition-colors text-foreground text-sm"
 >
   <svg
     className="w-5 h-5"
@@ -204,12 +215,12 @@ function Login() {
           </div>
 
           {/* Signup */}
-          <p className="mt-4 text-center text-sm text-white/70 font-inter">
+          <p className="mt-4 text-center text-sm text-muted-foreground font-inter">
             Don’t have an account?{" "}
             <button
               type="button"
               onClick={() => navigate("/signup")}
-              className="text-[#00ADB5] hover:text-[#00C4CC] font-semibold transition"
+              className="text-primary hover:opacity-80 font-semibold transition"
             >
               Sign up
             </button>

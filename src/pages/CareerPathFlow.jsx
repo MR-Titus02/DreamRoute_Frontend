@@ -89,7 +89,7 @@ export default function CareerRoadmapReactFlow() {
     setError(null);
 
     try {
-      const res = await axios.get(`https://api.dreamroute.edu.lk/api/career/${userId}`);
+      const res = await axios.get(`http://localhost:5001/api/career/${userId}`);
       if (res.data.type !== "reactflow") throw new Error("Invalid roadmap format.");
 
       const { nodes: rawNodes, edges: rawEdges, career: careerTitle } = res.data.content;
@@ -124,7 +124,7 @@ export default function CareerRoadmapReactFlow() {
     } catch (err) {
       if (err.response?.status === 404) {
         try {
-          await axios.post("https://api.dreamroute.edu.lk/api/career/generate", { userId });
+          await axios.post("http://localhost:5001/api/career/generate", { userId });
           await fetchRoadmap();
           return;
         } catch (generateErr) {
@@ -146,7 +146,7 @@ export default function CareerRoadmapReactFlow() {
     setLoading(true);
     setError(null);
     try {
-      await axios.post("https://api.dreamroute.edu.lk/api/career/generate", { userId });
+      await axios.post("http://localhost:5001/api/career/generate", { userId });
       await fetchRoadmap();
     } catch (err) {
       console.error("Regenerate error:", err);

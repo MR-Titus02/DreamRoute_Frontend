@@ -30,10 +30,12 @@ function OAuthRedirect() {
     } else {
       navigate("/login");
     }
-  }, []);
+  }, [location.search, login, navigate]);
 
   return (
-    <div className="text-white text-center mt-10">Signing in via Google...</div>
+    <div role="status" className="min-h-screen bg-background px-4 py-10 text-center text-foreground">
+      Signing in via Google…
+    </div>
   );
 }
 

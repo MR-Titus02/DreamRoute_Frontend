@@ -6,9 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/api/axios";
 import DashboardLayout from "@/layouts/DashboardLayout"; // ✅ layout wrapper
+import ThemeToggle from "@/components/ThemeToggle";
+import { useTheme } from "next-themes";
 
 export default function Settings() {
   const { user } = useAuth();
+  const { resolvedTheme } = useTheme();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -16,7 +19,6 @@ export default function Settings() {
     learningMode: "Online",
     budget: "",
     duration: "Short-term",
-    darkMode: true,
     emailNotifs: true,
     courseAlerts: true,
   });
@@ -59,12 +61,12 @@ export default function Settings() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 bg-[#1e293b] min-h-screen text-white">
-      <h1 className="text-3xl font-bold mb-6 text-cyan-600 text-center">⚙️ User Settings</h1>
+      <div className="min-h-screen bg-background p-6 text-foreground">
+      <h1 className="mb-6 text-center text-3xl font-bold text-foreground">User Settings</h1>
 
-        <form onSubmit={handleSubmit} className="grid gap-6 max-w-4xl mx-auto">
+        <form onSubmit={handleSubmit} className="grid min-w-0 grid-cols-1 gap-6 max-w-4xl mx-auto">
           {/* Account Settings */}
-          <Card className="bg-[#334155] text-white">
+          <Card className="bg-card text-card-foreground">
             <CardHeader>
               <CardTitle>Account</CardTitle>
             </CardHeader>
@@ -74,16 +76,16 @@ export default function Settings() {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Full Name"
-                className="bg-white text-black"
+                className="bg-background text-foreground"
               />
               <Input
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Email"
-                className="bg-white text-black"
+                className="bg-background text-foreground"
               />
-              <div className="flex items-center space-x-4">
+              <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4">
               <Button variant="secondary" 
               className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:brightness-110 transition shadow-lg flex items-center space-x-2"
               >
@@ -95,7 +97,7 @@ export default function Settings() {
           </Card>
 
           {/* Notification Preferences (only frontend for now) */}
-          <Card className="bg-[#334155] text-white">
+          <Card className="bg-card text-card-foreground">
             <CardHeader>
               <CardTitle>Notifications</CardTitle>
             </CardHeader>
@@ -120,6 +122,18 @@ export default function Settings() {
                   }
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card text-card-foreground">
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                Current mode: {resolvedTheme === "dark" ? "Dark" : "Light"}
+              </p>
+              <ThemeToggle />
             </CardContent>
           </Card>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const Step3SkillsExperience = ({ onNext, onBack, initialValues = {} }) => {
   const [form, setForm] = useState({
@@ -33,15 +33,17 @@ const Step3SkillsExperience = ({ onNext, onBack, initialValues = {} }) => {
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-[#1F2D3D] p-6 rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4 text-white">Step 3: Skills & Preferences</h2>
+    <div className="max-w-xl mx-auto bg-card p-6 rounded-lg shadow text-card-foreground">
+      <h2 className="text-xl font-bold mb-4 text-foreground">Step 3: Skills & Preferences</h2>
       <div className="space-y-4">
         <div>
+          <label htmlFor="education-level" className="mb-1 block text-sm font-medium">Education level</label>
           <select
+            id="education-level"
             name="educationLevel"
             value={form.educationLevel}
             onChange={handleChange}
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           >
             <option value="" disabled hidden>Select Education Level</option>
             <option>High School</option>
@@ -51,16 +53,18 @@ const Step3SkillsExperience = ({ onNext, onBack, initialValues = {} }) => {
             <option>Other</option>
           </select>
           {errors.educationLevel && (
-            <p className="text-red-400 text-sm mt-1">{errors.educationLevel}</p>
+            <p role="alert" className="text-error text-sm mt-1">{errors.educationLevel}</p>
           )}
         </div>
 
         <div>
+          <label htmlFor="study-language" className="mb-1 block text-sm font-medium">Preferred language</label>
           <select
+            id="study-language"
             name="studyLanguage"
             value={form.studyLanguage}
             onChange={handleChange}
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           >
             <option value="" disabled hidden>Preferred Language</option>
             <option>English</option>
@@ -68,16 +72,18 @@ const Step3SkillsExperience = ({ onNext, onBack, initialValues = {} }) => {
             <option>Sinhala</option>
           </select>
           {errors.studyLanguage && (
-            <p className="text-red-400 text-sm mt-1">{errors.studyLanguage}</p>
+            <p role="alert" className="text-error text-sm mt-1">{errors.studyLanguage}</p>
           )}
         </div>
 
         <div>
+          <label htmlFor="budget-range" className="mb-1 block text-sm font-medium">Budget range</label>
           <select
+            id="budget-range"
             name="budget"
             value={form.budget}
             onChange={handleChange}
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           >
             <option value="" disabled hidden>Budget Range</option>
             <option>No Cost</option>
@@ -90,36 +96,46 @@ const Step3SkillsExperience = ({ onNext, onBack, initialValues = {} }) => {
             <option>Above ₹20 Lakhs</option>
           </select>
           {errors.budget && (
-            <p className="text-red-400 text-sm mt-1">{errors.budget}</p>
+            <p role="alert" className="text-error text-sm mt-1">{errors.budget}</p>
           )}
         </div>
 
-        <textarea
-          name="experience"
-          value={form.experience}
-          onChange={handleChange}
-          placeholder="Describe your past experience (if any)"
-          className="w-full p-2 rounded bg-[#101C2B] text-white"
-        />
+        <div>
+          <label htmlFor="experience" className="mb-1 block text-sm font-medium">Past experience <span className="font-normal text-muted-foreground">(optional)</span></label>
+          <textarea
+            id="experience"
+            name="experience"
+            value={form.experience}
+            onChange={handleChange}
+            placeholder="Describe your past experience"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
+          />
+        </div>
 
-        <input
-          name="certifications"
-          value={form.certifications}
-          onChange={handleChange}
-          placeholder="Relevant certifications (comma separated)"
-          className="w-full p-2 rounded bg-[#101C2B] text-white"
-        />
+        <div>
+          <label htmlFor="certifications" className="mb-1 block text-sm font-medium">Relevant certifications <span className="font-normal text-muted-foreground">(optional)</span></label>
+          <input
+            id="certifications"
+            name="certifications"
+            value={form.certifications}
+            onChange={handleChange}
+            placeholder="Comma separated"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
+          />
+        </div>
 
         <div className="flex justify-between pt-4">
           <button
+            type="button"
             onClick={onBack}
-            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
+            className="bg-secondary text-secondary-foreground px-4 py-2 rounded"
           >
             Back
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
-            className="bg-[#00ADB5] hover:bg-[#00c7d1] text-white px-4 py-2 rounded"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded"
           >
             Submit
           </button>

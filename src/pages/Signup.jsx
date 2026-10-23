@@ -4,6 +4,7 @@ import Logo from "../assets/logo.png";
 import axios from "../api/axios";
 import { useAuth } from "@/context/AuthContext";
 import BackButton from "../components/BackButton"; // ✅ Import the BackButton
+import ThemeToggle from "@/components/ThemeToggle";
 
 function SignUp() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ function SignUp() {
     password: false,
     confirmPassword: false,
   });
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -32,13 +35,16 @@ function SignUp() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
     const { name, email, password, confirmPassword } = formData;
 
     if (password !== confirmPassword) {
-      return alert("Passwords do not match");
+      setError("Passwords do not match.");
+      return;
     }
 
+    setIsSubmitting(true);
     try {
       const payload = { name, email, password, role: "student" };
       const res = await axios.post("/auth/register", payload);
@@ -47,16 +53,21 @@ function SignUp() {
       navigate("/dashboard");
     } catch (err) {
       console.error("Registration error:", err.response?.data || err.message);
-      alert(err.response?.data?.message || "Registration failed");
+      setError(err.response?.data?.message || "Registration failed");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#222831] via-[#393E46] to-[#222831] flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4 py-20 relative overflow-hidden">
 
       {/* ✅ Back Button Top-Left */}
       <div className="absolute top-4 left-4 z-10">
         <BackButton to="/" label="Back" />
+      </div>
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
       </div>
 
       {/* 🔵 Animated Background Blobs */}
@@ -67,14 +78,14 @@ function SignUp() {
       </div>
 
       {/* 📄 SignUp Form Card */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/20">
+      <div className="w-full max-w-md bg-card rounded-2xl p-6 shadow-xl border border-border">
         {/* 🔗 Logo and Heading */}
         <div className="flex flex-col items-center mb-4">
           <img src={Logo} alt="DreamRoute" className="w-20 h-20 mb-2 rounded-lg" />
-          <h2 className="text-2xl font-bold text-white text-center mb-1">
+          <h2 className="text-2xl font-bold text-foreground text-center mb-1">
             Join <span className="text-[#00ADB5]">DreamRoute</span>
           </h2>
-          <p className="text-white/70 text-sm text-center">
+          <p className="text-muted-foreground text-sm text-center">
             Start your journey to extraordinary destinations
           </p>
         </div>
@@ -84,13 +95,13 @@ function SignUp() {
           {["name", "email", "password", "confirmPassword"].map((field) => (
             <div key={field} className="relative">
               <label
-                htmlFor={field}
-                className="block text-sm font-semibold text-white/90 capitalize mb-1"
+                htmlFor={`signup-${field}`}
+                className="block text-sm font-semibold text-foreground capitalize mb-1"
               >
                 {field === "confirmPassword" ? "Confirm Password" : field}
               </label>
               <input
-                id={field}
+                id={`signup-${field}`}
                 name={field}
                 type={
                   field === "password" || field === "confirmPassword"
@@ -109,10 +120,10 @@ function SignUp() {
                   field === "confirmPassword" ? "password again" : field
                 }`}
                 required
-                className={`w-full px-4 py-2 rounded-lg bg-white/10 border placeholder-white/50 text-white font-medium transition duration-300 ${
+                className={`w-full px-4 py-2 rounded-lg bg-background border placeholder:text-muted-foreground text-foreground font-medium transition duration-300 ${
                   focusedField === field
-                    ? "border-cyan-400 shadow-md bg-white/20"
-                    : "border-white/30 hover:border-white/50"
+                    ? "border-primary shadow-md"
+                    : "border-input hover:border-ring"
                 }`}
               />
 
@@ -121,8 +132,7 @@ function SignUp() {
                 <button
                   type="button"
                   onClick={() => toggleShowPassword(field)}
-                  className="absolute right-3 top-[38px] text-white/70 hover:text-white"
-                  tabIndex={-1}
+                  className="absolute right-3 top-[38px] text-muted-foreground hover:text-foreground"
                   aria-label={
                     showPassword[field] ? "Hide password" : "Show password"
                   }
@@ -175,24 +185,30 @@ function SignUp() {
             </div>
           ))}
 
-          {/* ✅ Submit */}
+          {error && (
+            <p role="alert" className="rounded-md bg-destructive/10 p-2 text-center text-sm text-error">
+              {error}
+            </p>
+          )}
+
           <button
             type="submit"
-            className="w-full py-2 mt-2 rounded-lg bg-gradient-to-r from-[#00ADB5] to-[#00C4CC] hover:from-[#00C4CC] hover:to-[#00ADB5] text-white font-bold shadow-lg hover:shadow-xl transition-transform duration-300 hover:scale-105"
+            disabled={isSubmitting}
+            className="w-full py-2 mt-2 rounded-lg bg-primary text-primary-foreground font-bold shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Create Account
+            {isSubmitting ? "Creating account…" : "Create Account"}
           </button>
         </form>
 
         {/* Divider */}
-        <div className="my-4 text-center text-white/60 text-sm">or continue with</div>
+        <div className="my-4 text-center text-muted-foreground text-sm">or continue with</div>
 
         {/* Social Buttons */}
         <div className="grid grid-cols-2 gap-3">
         <button
   type="button"
   onClick={() => window.location.href = "http://ec2-3-27-187-10.ap-southeast-2.compute.amazonaws.com:5000/auth/google"} 
-  className="flex items-center justify-center gap-2 py-2 border border-white/20 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-white text-sm"
+  className="flex items-center justify-center gap-2 py-2 border border-border rounded-lg bg-background hover:bg-muted transition-colors text-foreground text-sm"
 >
   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -205,7 +221,7 @@ function SignUp() {
 <button
   type="button"
   onClick={() => window.location.href = "http://ec2-3-27-187-10.ap-southeast-2.compute.amazonaws.com:5000/auth/github"}
-  className="flex items-center justify-center gap-2 py-2 border border-white/20 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-white text-sm"
+  className="flex items-center justify-center gap-2 py-2 border border-border rounded-lg bg-background hover:bg-muted transition-colors text-foreground text-sm"
 >
   <svg
     className="w-5 h-5"
@@ -225,11 +241,11 @@ function SignUp() {
         </div>
 
         {/* 🔁 Login Redirect */}
-        <p className="mt-5 text-center text-sm text-white/70">
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <button
             onClick={() => navigate("/login")}
-            className="text-[#00ADB5] font-semibold hover:text-[#00C4CC] transition"
+            className="text-primary font-semibold hover:opacity-80 transition"
           >
             Sign in
           </button>

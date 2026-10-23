@@ -47,71 +47,83 @@ const Step1PersonalDetails = ({ onNext, initialValues = {} }) => {
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-[#1F2D3D] p-6 rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4 text-white">Step 1: Personal Details</h2>
+    <div className="max-w-xl mx-auto bg-card p-6 rounded-lg shadow text-card-foreground">
+      <h2 className="text-xl font-bold mb-4 text-foreground">Step 1: Personal Details</h2>
       <div className="space-y-4">
         <div>
+          <label htmlFor="profile-full-name" className="mb-1 block text-sm font-medium">Full name</label>
           <input
+            id="profile-full-name"
             name="fullName"
             value={form.fullName}
             onChange={handleChange}
             placeholder="Full Name"
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           />
-          {errors.fullName && <p className="text-red-400 text-sm mt-1">{errors.fullName}</p>}
+          {errors.fullName && <p role="alert" className="text-error text-sm mt-1">{errors.fullName}</p>}
         </div>
 
         <div>
+          <label htmlFor="profile-email" className="mb-1 block text-sm font-medium">Email address</label>
           <input
+            id="profile-email"
+            type="email"
             name="email"
             value={form.email}
             onChange={handleChange}
             placeholder="Email Address"
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           />
-          {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
+          {errors.email && <p role="alert" className="text-error text-sm mt-1">{errors.email}</p>}
         </div>
 
         <div>
+          <label htmlFor="profile-dob" className="mb-1 block text-sm font-medium">Date of birth</label>
           <input
+            id="profile-dob"
             type="date"
             name="dob"
             value={form.dob}
             onChange={handleChange}
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           />
-          {errors.dob && <p className="text-red-400 text-sm mt-1">{errors.dob}</p>}
+          {errors.dob && <p role="alert" className="text-error text-sm mt-1">{errors.dob}</p>}
         </div>
 
         <div>
+          <label htmlFor="profile-gender" className="mb-1 block text-sm font-medium">Gender</label>
           <select
+            id="profile-gender"
             name="gender"
             value={form.gender}
             onChange={handleChange}
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           >
             <option value="" disabled hidden>Select Gender</option>
             <option>Male</option>
             <option>Female</option>
             <option>Other</option>
           </select>
-          {errors.gender && <p className="text-red-400 text-sm mt-1">{errors.gender}</p>}
+          {errors.gender && <p role="alert" className="text-error text-sm mt-1">{errors.gender}</p>}
         </div>
 
         <div>
+          <label htmlFor="profile-location" className="mb-1 block text-sm font-medium">Location <span className="font-normal text-muted-foreground">(optional)</span></label>
           <input
+            id="profile-location"
             name="location"
             value={form.location}
             onChange={handleChange}
             placeholder="Location (City, Country)"
-            className="w-full p-2 rounded bg-[#101C2B] text-white"
+            className="w-full rounded border border-input bg-background p-2 text-foreground"
           />
-          {errors.location && <p className="text-red-400 text-sm mt-1">{errors.location}</p>}
+          {errors.location && <p role="alert" className="text-error text-sm mt-1">{errors.location}</p>}
         </div>
 
         <button
           onClick={handleSubmit}
-          className="bg-[#00ADB5] hover:bg-[#00c7d1] text-white px-4 py-2 rounded"
+          type="button"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded"
         >
           Next
         </button>
